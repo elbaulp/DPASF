@@ -17,9 +17,10 @@
 
 package com.elbauldelprogramador.utils
 
-import org.apache.flink.util.XORShiftRandom
 import scala.reflect.ClassTag
 import scala.util.Random
+
+import org.apache.flink.util.XORShiftRandom
 
 private[elbauldelprogramador] object SamplingUtils {
 
@@ -30,7 +31,7 @@ private[elbauldelprogramador] object SamplingUtils {
    * @param input input size
    * @param k reservoir size
    * @param seed random seed
-   * @return (samples, input size)
+   * @return samples
    */
   def reservoirSample[T: ClassTag](
     input: Iterator[T],

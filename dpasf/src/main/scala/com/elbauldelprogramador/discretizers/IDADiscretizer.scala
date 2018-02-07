@@ -28,7 +28,7 @@ case class IDADiscretizer[T: ClassTag](
   data: DataSet[T],
   s: Int = 1000,
   private val V: Vector[MinMaxPriorityQueue[Long]]) extends Serializable {
-
+  val a: MinMaxPriorityQueue[java.lang.Double] = MinMaxPriorityQueue.create()
 
   private[this] def updateSamples(x: T) = reservoirSample(Iterator(1), 1)
   private[this] def insertValue(x: Long) = ???
