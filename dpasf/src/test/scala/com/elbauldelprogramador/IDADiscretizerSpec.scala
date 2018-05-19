@@ -1,5 +1,7 @@
 import org.apache.flink.api.scala._
 
+import com.elbauldelprogramador.discretizers.IDADiscretizer
+
 // Iris POJO
 case class Iris(
   SepalLength: Double,
@@ -11,7 +13,8 @@ case class Iris(
 object fixtures {
   val env = ExecutionEnvironment.getExecutionEnvironment
   //val dataSet = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
-  val dataSet = env.fromElements(1 to 10000 by 1)
+  val dataSet = env.fromElements(1 to 10 by 1)
+
 }
 
 // BDD tests
@@ -20,8 +23,9 @@ class IDADiscretizerSpec extends BddSpec {
   "A Category" - {
     "When calling its Identity" - {
       "Should be computed correctly" in {
-        //assert(Category.Id(10) == 10)
-        dataSet.print()
+        val a = IDADiscretizer[Range](dataSet)
+        a.test
+        assert(Set.empty.size == 0)
       }
     }
     "When composing it" - {

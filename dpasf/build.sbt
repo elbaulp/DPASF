@@ -9,7 +9,7 @@ version := "0.1-SNAPSHOT"
 
 organization := "com.elbauldelprogramador"
 
-scalaVersion in ThisBuild := "2.11.7"
+scalaVersion in ThisBuild := "2.11.3"
 
 val flinkVersion = "1.4.0"
 
@@ -24,9 +24,13 @@ val testDeps = Seq(
   "org.scalatest" %% "scalatest" % "3.0.4" % "test",
   "org.scalacheck" %% "scalacheck" % "1.13.4" % "test")
 
+val loggers = Seq(
+//  "org.log4s" %% "log4s" % "1.3.4",
+  "ch.qos.logback" % "logback-classic" % "1.2.3")
+
 lazy val root = (project in file(".")).
   settings(
-    libraryDependencies ++= flinkDependencies ++ testDeps ++ genericDeps
+    libraryDependencies ++= flinkDependencies ++ testDeps ++ genericDeps ++ loggers
   )
 
 mainClass in assembly := Some("com.elbauldelprogramador.Job")
