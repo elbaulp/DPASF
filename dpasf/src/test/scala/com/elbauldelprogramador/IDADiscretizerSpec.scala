@@ -1,6 +1,8 @@
 import org.apache.flink.api.scala._
+import moa.streams.ArffFileStream
 
 import com.elbauldelprogramador.discretizers.IDADiscretizer
+import org.apache.flink.shaded.guava18.com.google.common.collect.MinMaxPriorityQueue
 
 // Iris POJO
 case class Iris(
@@ -10,11 +12,25 @@ case class Iris(
   PetalWidth: Double,
   Class: Int)
 
+// elecNormNew POJO
+case class ElecNormNew(
+  date: Double,
+  day: Int,
+  period: Double,
+  nswprice: Double,
+  nswdemand: Double,
+  vicprice: Double,
+  vicdemand: Double,
+  transfer: Double,
+  label: String) extends Serializable
+
 object fixtures {
   val env = ExecutionEnvironment.getExecutionEnvironment
-  //val dataSet = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
-  val dataSet = env.fromElements(1 to 10 by 1)
 
+  //val dataSet = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
+  //val ataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
+  val dataSet = env.fromElements(1 to 10 by 1)
+  //val dataSet = env.readCsvFile[ElecNormNew](getClass.getResource("/elecNormNew.arff").getPath)
 }
 
 // BDD tests
@@ -24,8 +40,7 @@ class IDADiscretizerSpec extends BddSpec {
     "When calling its Identity" - {
       "Should be computed correctly" in {
         val a = IDADiscretizer[Range](dataSet)
-        a.test
-        assert(Set.empty.size == 0)
+        a.discretize
       }
     }
     "When composing it" - {

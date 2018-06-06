@@ -17,8 +17,9 @@
 
 package com.elbauldelprogramador.discretizers
 
-import com.elbauldelprogramador.utils.SamplingUtils._
-import com.google.common.collect.MinMaxPriorityQueue
+import com.elbauldelprogramador.utils.SamplingUtils
+//import com.google.common.collect.MinMaxPriorityQueue
+import org.apache.flink.shaded.guava18.com.google.common.collect.MinMaxPriorityQueue
 import org.apache.flink.api.scala._
 import org.slf4j.LoggerFactory
 
@@ -26,32 +27,48 @@ import org.slf4j.LoggerFactory
  * Incremental Discretization Algorithm
  *
  * @param data DataSet to sample from
+ * @param nBins number of bins
  * @param s sample size
  *
  */
 case class IDADiscretizer[T](
   data: DataSet[T],
-  s: Int = 1000) {
+  nBins: Int = 5,
+  s: Int = 1000) extends Serializable {
 
   private[this] val log = LoggerFactory.getLogger("IDADiscretizer")
-
-  private val V = Vector.tabulate(10)(_ => IntervalHeap(5, 1, 1, 1))
+  private[this] val V = Vector.tabulate(10)(_ => IntervalHeap(nBins, 1, 1, s))
 
   def test = {
-    V(0).insert(1.0)
-    V(0).insert(2.0)
-    V(0).insert(3.0)
-    V(0).insert(4.0)
-    V(0).insert(5.0)
-    V(0).insert(6.0)
-    V(0).insert(7.0)
-    V(0).insert(8.0)
-    V(0).insert(9.0)
-    V(0) insert (10)
-    V foreach (println)
+    //V(0).insert(1.0)
+    //V(0).insert(300.0)
+    //V(0).insert(301.0)
+    //V(0).insert(4.0)
+    //V(0).insert(100.0)
+    //V(0).insert(105.0)
+    //V(0).insert(6.0)
+    //V(0).insert(7.0)
+    //V(0).insert(100.0)
+    //V(0).insert(8.0)
+    //V(0).insert(9.0)
+    //V(0) insert (10)
+    //V foreach (println)
+    val r = SamplingUtils.reservoirSample(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).iterator, 1)
+
   }
-  //private[this] def updateSamples(x: T) = ???
-  //private[this] def insertValue(x: Long) = ???
+
+  private[this] def updateSamples(x: T): Vector[IntervalHeap] = {
+    log.warn(s"$x")
+    //SamplingUtils.reservoirSample(input: Iterator[T], k: Int, seed: Long)
+    log.warn(s"${x.getClass.getFields.length}")
+    V
+  }
+
+  def discretize() = {
+    //data flatMap (x => updateSamples(x))
+    data map (x => updateSamples(x))
+
+  }
 }
 
 /**
@@ -69,13 +86,13 @@ private[discretizers] case class IntervalHeap(
   private val nBins: Int,
   private val attrIndex: Int,
   private val nbSamples: Int, // nbSamples
-  private val sampleSize: Int) { // sampleSize
+  private val sampleSize: Int) extends Serializable { // sampleSize
 
   type jDouble = java.lang.Double
 
   private[this] val log = LoggerFactory.getLogger(this.getClass)
 
-  private val V: Vector[MinMaxPriorityQueue[jDouble]] =
+  private lazy val V: Vector[MinMaxPriorityQueue[jDouble]] =
     Vector.tabulate(nBins)(_ => MinMaxPriorityQueue.create())
 
   def insert(value: Double): Unit = {
@@ -148,6 +165,7 @@ private[discretizers] case class IntervalHeap(
     }
 
     V(j) add value
+    // Check order /w Delta Iterate Operator flink
   }
 
   override def toString: String = {
