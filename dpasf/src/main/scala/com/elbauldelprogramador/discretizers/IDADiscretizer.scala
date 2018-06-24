@@ -179,18 +179,8 @@ private[discretizers] case class IntervalHeap(
     log.info(s"replace($i, $v), $V")
     // Find the target bin
     val bin = findTBin(i)
-    log.warn(s"bin: $bin")
-    log.warn(s"$V")
-    log.warn(s"${V(bin)}")
-    //    val tBin = V.zipWithIndex
-    //      .foldLeft(0) {
-    //        case (z, (q, index)) =>
-    //          log.debug(s"(z, (q, index)): ($z, ($q, $index))")
-    //          if (z <= i) z + q.size
-    //          else index
-    //      }
-
     // Find the value
+
     //    var value = .0
     //    var c = 0
     //    val it = V(V.indexOf(tBin)).iterator
@@ -214,15 +204,15 @@ private[discretizers] case class IntervalHeap(
    */
   private[this] def findTBin(i: Int): Int = {
     @tailrec
-    def go(v: Vector[MinMaxPriorityQueue[jDouble]], z: Int): Int = {
-      if (z >= i) V indexOf v.head
-      else v match {
-        case h +: t if (z <= h.size) =>
-          log.debug(s"h: $h, V: $V, z: $z, h.size: ${h.size}")
-          go(t, z + h.size)
+    def go(v: Vector[MinMaxPriorityQueue[jDouble]], z: Int, tBin: Int): Int = {
+      v match {
+        case h +: t if z >= h.size =>
+          go(t, z - h.size, tBin + 1)
+        case _ =>
+          tBin
       }
     }
-    go(V, 0)
+    go(V, i, 0)
   }
 
   override def toString: String = {

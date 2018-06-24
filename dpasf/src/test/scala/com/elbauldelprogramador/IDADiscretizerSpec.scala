@@ -13,6 +13,7 @@ case class Iris(
 
 object fixtures {
   val env = ExecutionEnvironment.getExecutionEnvironment
+  env.setParallelism(1)
 
   val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
   //val dataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
