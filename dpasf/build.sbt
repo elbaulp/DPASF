@@ -11,16 +11,18 @@ organization := "com.elbauldelprogramador"
 
 scalaVersion in ThisBuild := "2.11.3"
 
-val flinkVersion = "1.4.0"
+val flinkVersion = "1.5.0"
 
 val genericDeps = Seq(
-//  "com.google.guava" % "guava" % "24.0-jre"
+  "com.google.guava" % "guava" % "24.0-jre",
   "nz.ac.waikato.cms.moa" % "moa" % "2017.06"
 )
 
 val flinkDependencies = Seq(
   "org.apache.flink" %% "flink-scala" % flinkVersion % "provided",
-  "org.apache.flink" %% "flink-streaming-scala" % flinkVersion % "provided")
+  "org.apache.flink" %% "flink-ml" % flinkVersion % "provided",
+  "org.apache.flink" %% "flink-streaming-scala" % flinkVersion % "provided"
+)
 
 val testDeps = Seq(
   "org.scalatest" %% "scalatest" % "3.0.4" % "test",

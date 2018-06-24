@@ -1,8 +1,7 @@
-import org.apache.flink.api.scala._
-import moa.streams.ArffFileStream
-
 import com.elbauldelprogramador.discretizers.IDADiscretizer
-import org.apache.flink.shaded.guava18.com.google.common.collect.MinMaxPriorityQueue
+import org.apache.flink.api.scala._
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.math.DenseVector
 
 // Iris POJO
 case class Iris(
@@ -10,27 +9,24 @@ case class Iris(
   SepalWidth: Double,
   PetalLength: Double,
   PetalWidth: Double,
-  Class: Int)
-
-// elecNormNew POJO
-case class ElecNormNew(
-  date: Double,
-  day: Int,
-  period: Double,
-  nswprice: Double,
-  nswdemand: Double,
-  vicprice: Double,
-  vicdemand: Double,
-  transfer: Double,
-  label: String) extends Serializable
+  Class: Double)
 
 object fixtures {
   val env = ExecutionEnvironment.getExecutionEnvironment
 
-  //val dataSet = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
-  //val ataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
-  val dataSet = env.fromElements(1 to 10 by 1)
-  //val dataSet = env.readCsvFile[ElecNormNew](getClass.getResource("/elecNormNew.arff").getPath)
+  val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
+  //val dataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
+  //val data = (0 to 10).map(_ => Seq(Random.nextDouble, Random.nextDouble, Random.nextString(3)))
+  //val data1 = env.fromCollection(data)
+  val dataSet = data
+    .map { tuple =>
+      val list = tuple.productIterator.toList
+      val numList = list map (_.asInstanceOf[Double])
+      LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
+    }
+  //  val dataSet = env.readCsvFile[ElecNormNew](
+  //    getClass.getResource("/elecNormNew.arff").getPath,
+  //    pojoFields = Array("date", "day", "period", "nswprice", "nswdemand", "vicprice", "vicdemand", "transfer", "label"))
 }
 
 // BDD tests
@@ -39,8 +35,8 @@ class IDADiscretizerSpec extends BddSpec {
   "A Category" - {
     "When calling its Identity" - {
       "Should be computed correctly" in {
-        val a = IDADiscretizer[Range](dataSet)
-        a.discretize
+        val a = IDADiscretizer(nAttrs = 4)
+        val r = a.discretize(dataSet)
       }
     }
     "When composing it" - {

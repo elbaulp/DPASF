@@ -17,10 +17,13 @@
 
 package com.elbauldelprogramador.discretizers
 
+import scala.annotation.{ switch, tailrec }
+import scala.util.Random
+
 import com.elbauldelprogramador.utils.SamplingUtils
-//import com.google.common.collect.MinMaxPriorityQueue
-import org.apache.flink.shaded.guava18.com.google.common.collect.MinMaxPriorityQueue
+import com.google.common.collect.MinMaxPriorityQueue
 import org.apache.flink.api.scala._
+import org.apache.flink.ml.common.LabeledVector
 import org.slf4j.LoggerFactory
 
 /**
@@ -31,43 +34,36 @@ import org.slf4j.LoggerFactory
  * @param s sample size
  *
  */
-case class IDADiscretizer[T](
-  data: DataSet[T],
+case class IDADiscretizer(
+  nAttrs: Int,
   nBins: Int = 5,
-  s: Int = 1000) extends Serializable {
+  s: Int = 10) {
 
   private[this] val log = LoggerFactory.getLogger("IDADiscretizer")
-  private[this] val V = Vector.tabulate(10)(_ => IntervalHeap(nBins, 1, 1, s))
+  private[this] val V = Vector.tabulate(nAttrs)(i => IntervalHeap(nBins, i, s))
+  private[this] val randomReservoir = SamplingUtils.reservoirSample((1 to s).toList.iterator, 1)
 
-  def test = {
-    //V(0).insert(1.0)
-    //V(0).insert(300.0)
-    //V(0).insert(301.0)
-    //V(0).insert(4.0)
-    //V(0).insert(100.0)
-    //V(0).insert(105.0)
-    //V(0).insert(6.0)
-    //V(0).insert(7.0)
-    //V(0).insert(100.0)
-    //V(0).insert(8.0)
-    //V(0).insert(9.0)
-    //V(0) insert (10)
-    //V foreach (println)
-    val r = SamplingUtils.reservoirSample(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).iterator, 1)
-
+  private[this] def updateSamples(v: LabeledVector) /*: Vector[IntervalHeap]*/ = {
+    val attrs = v.vector.map(_._2)
+    // TODO: Check for missing values
+    attrs
+      .zipWithIndex
+      .foreach {
+        case (attr, i) =>
+          if (V(i).nInstances < s) {
+            V(i) insert (attr)
+          } else {
+            if (randomReservoir(0) <= s / (i + 1)) {
+              val randVal = Random nextInt (s)
+              V(i) replace (randVal, attr)
+            }
+          }
+      }
   }
 
-  private[this] def updateSamples(x: T): Vector[IntervalHeap] = {
-    log.warn(s"$x")
-    //SamplingUtils.reservoirSample(input: Iterator[T], k: Int, seed: Long)
-    log.warn(s"${x.getClass.getFields.length}")
-    V
-  }
-
-  def discretize() = {
-    //data flatMap (x => updateSamples(x))
-    data map (x => updateSamples(x))
-
+  def discretize(data: DataSet[LabeledVector]) /*: DataSet[IntervalHeap]*/ = {
+    val d = data map (x => updateSamples(x))
+    d print
   }
 }
 
@@ -85,7 +81,7 @@ case class IDADiscretizer[T](
 private[discretizers] case class IntervalHeap(
   private val nBins: Int,
   private val attrIndex: Int,
-  private val nbSamples: Int, // nbSamples
+  //  private val nbSamples: Int, // nbSamples
   private val sampleSize: Int) extends Serializable { // sampleSize
 
   type jDouble = java.lang.Double
@@ -95,6 +91,11 @@ private[discretizers] case class IntervalHeap(
   private lazy val V: Vector[MinMaxPriorityQueue[jDouble]] =
     Vector.tabulate(nBins)(_ => MinMaxPriorityQueue.create())
 
+  /**
+   * Insert the value into the IntervalHeap
+   *
+   * @param value the value to add
+   */
   def insert(value: Double): Unit = {
     // Count how many elements are in V
     val Vsize = V.map(_.size).sum
@@ -144,28 +145,84 @@ private[discretizers] case class IntervalHeap(
     //[1.0;4.0](4) [5.0;5.0](1) [;][9.0;9.0](1) [6.0;10.0](4)
     //[1.0;2.0](2) [3.0;4.0](2) [5.0;6.0](2) [7.0;8.0](2) [9.0;10.0](2)
     if (t >= j) {
-      log.debug(s"VALUES UP: t = $t, j = $j, slice = ${V slice (j, t)}, $V")
+      //log.debug(s"VALUES UP: t = $t, j = $j, slice = ${V slice (j, t)}, $V")
       V.zipWithIndex.
         slice(j, t).
         foreach {
           case (q, i) =>
-            log.debug(s"\t\t($q, $i)")
+            //            log.debug(s"\t\t($q, $i)")
             V(i + 1) add (q.pollLast)
         }
     } // Shuffle excess values down
     else {
-      log.debug(s"VALUES DOWN: t = $t, j = $j, slice = ${V slice (t, j)}, $V")
+      //      log.debug(s"VALUES DOWN: t = $t, j = $j, slice = ${V slice (t, j)}, $V")
       V.zipWithIndex.
         slice(t, j).
         foreach {
           case (q, i) =>
             V(i) add (V(i + 1) pollFirst)
-            log.debug(s"\t\t($q, $i)")
+          //            log.debug(s"\t\t($q, $i)")
         }
     }
 
     V(j) add value
     // Check order /w Delta Iterate Operator flink
+  }
+
+  /**
+   * Replace the ith value by v
+   *
+   * @param i the index of the value to replace
+   * @param v the replacement value
+   */
+  def replace(i: Int, v: Double) = {
+    log.info(s"replace($i, $v), $V")
+    // Find the target bin
+    val bin = findTBin(i)
+    log.warn(s"bin: $bin")
+    log.warn(s"$V")
+    log.warn(s"${V(bin)}")
+    //    val tBin = V.zipWithIndex
+    //      .foldLeft(0) {
+    //        case (z, (q, index)) =>
+    //          log.debug(s"(z, (q, index)): ($z, ($q, $index))")
+    //          if (z <= i) z + q.size
+    //          else index
+    //      }
+
+    // Find the value
+    //    var value = .0
+    //    var c = 0
+    //    val it = V(V.indexOf(tBin)).iterator
+    //    while (it.hasNext) {
+    //      if (c == i) {
+    //        value = it.next
+    //      }
+    //      c += 1
+    //      it.next
+    //    }
+
+    //    log.info(s"vOld = $value")
+  }
+
+  def nInstances: Int = V.map(_.size).sum
+
+  /**
+   * Find in which bin is the element located at index i
+   *
+   * @param i ith element
+   */
+  private[this] def findTBin(i: Int): Int = {
+    @tailrec
+    def go(v: Vector[MinMaxPriorityQueue[jDouble]], z: Int): Int = {
+      if (z >= i) V indexOf v.head
+      else v match {
+        case h +: t if (z <= h.size) =>
+          log.debug(s"h: $h, V: $V, z: $z, h.size: ${h.size}")
+          go(t, z + h.size)
+      }
+    }
+    go(V, 0)
   }
 
   override def toString: String = {
