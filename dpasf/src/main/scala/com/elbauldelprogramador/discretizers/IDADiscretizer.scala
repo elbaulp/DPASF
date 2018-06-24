@@ -178,21 +178,11 @@ private[discretizers] case class IntervalHeap(
   def replace(i: Int, v: Double) = {
     log.info(s"replace($i, $v), $V")
     // Find the target bin
-    val bin = findTBin(i)
+    val (bin, index) = findTBin(i)
     // Find the value
-
-    //    var value = .0
-    //    var c = 0
-    //    val it = V(V.indexOf(tBin)).iterator
-    //    while (it.hasNext) {
-    //      if (c == i) {
-    //        value = it.next
-    //      }
-    //      c += 1
-    //      it.next
-    //    }
-
-    //    log.info(s"vOld = $value")
+    val value = V(bin).toArray.apply(index)
+    log.info(s"Replacing value $value @ bin #$bin by $v")
+    //replaceValue(value, v)
   }
 
   def nInstances: Int = V.map(_.size).sum
@@ -201,15 +191,16 @@ private[discretizers] case class IntervalHeap(
    * Find in which bin is the element located at index i
    *
    * @param i ith element
+   * @return A tuple with the target bin and the relative index within that bin
    */
-  private[this] def findTBin(i: Int): Int = {
+  private[this] def findTBin(i: Int): Tuple2[Int, Int] = {
     @tailrec
-    def go(v: Vector[MinMaxPriorityQueue[jDouble]], z: Int, tBin: Int): Int = {
+    def go(v: Vector[MinMaxPriorityQueue[jDouble]], z: Int, tBin: Int): Tuple2[Int, Int] = {
       v match {
         case h +: t if z >= h.size =>
           go(t, z - h.size, tBin + 1)
         case _ =>
-          tBin
+          (tBin, z)
       }
     }
     go(V, i, 0)
