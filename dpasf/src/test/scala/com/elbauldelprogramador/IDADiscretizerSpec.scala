@@ -3,14 +3,6 @@ import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 
-// Iris POJO
-case class Iris(
-  SepalLength: Double,
-  SepalWidth: Double,
-  PetalLength: Double,
-  PetalWidth: Double,
-  Class: Double)
-
 object fixtures {
   val env = ExecutionEnvironment.getExecutionEnvironment
   env.setParallelism(1)

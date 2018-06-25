@@ -78,7 +78,7 @@ case class IDADiscretizer(
  * @param n Number of instancess seen so far
  * @param s sample size
  */
-private[discretizers] case class IntervalHeap(
+private[this] case class IntervalHeap(
   private val nBins: Int,
   private val attrIndex: Int,
   //  private val nbSamples: Int, // nbSamples
@@ -167,6 +167,7 @@ private[discretizers] case class IntervalHeap(
 
     V(j) add value
     // TODO Check order /w Delta Iterate Operator flink
+    checkIntervalHeap
   }
 
   /**
@@ -216,12 +217,14 @@ private[discretizers] case class IntervalHeap(
       V.zipWithIndex.
         slice(bin, newBin).
         foreach {
-          case (q, i) =>
+          case (_, i) =>
             V(i) add (V(i + 1) pollFirst)
         }
     }
     log.debug(s"Adding $v to bin #$newBin")
     V(newBin) add v
+
+    checkIntervalHeap
   }
 
   def nInstances: Int = V.map(_.size).sum
@@ -243,6 +246,21 @@ private[discretizers] case class IntervalHeap(
       }
     }
     go(V, i, 0)
+  }
+
+  private[this] def checkIntervalHeap = {
+    V.zipWithIndex
+      .slice(0, V.size - 1)
+      .foreach {
+        case (q, i) =>
+          if (!q.isEmpty && !V(i + 1).isEmpty) {
+            // Check Size
+            if (q.size < V(i + 1).size)
+              log.warn(s"Wrong size: ${this.toString}")
+            if (q.peekLast > V(i + 1).peekFirst)
+              log.warn(s"Wrong order: ${this.toString}")
+          }
+      }
   }
 
   override def toString: String = {
