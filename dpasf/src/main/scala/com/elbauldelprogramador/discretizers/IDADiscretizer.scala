@@ -166,7 +166,7 @@ private[discretizers] case class IntervalHeap(
     }
 
     V(j) add value
-    // Check order /w Delta Iterate Operator flink
+    // TODO Check order /w Delta Iterate Operator flink
   }
 
   /**
@@ -180,9 +180,48 @@ private[discretizers] case class IntervalHeap(
     // Find the target bin
     val (bin, index) = findTBin(i)
     // Find the value
-    val value = V(bin).toArray.apply(index)
-    log.info(s"Replacing value $value @ bin #$bin by $v")
-    //replaceValue(value, v)
+    val value = V(bin).toArray.apply(index) match {
+      case x: jDouble => x
+      case _ =>
+        log.error("A double was expected ")
+        throw new ClassCastException("A double was expected ")
+
+    }
+    log.debug(s"Removing $value from bin #$bin")
+    V(bin).remove(value)
+    // Find bin for new value
+    val intervals = V filter (q => !q.isEmpty)
+    val newBin =
+      // V is empty completely, insert first value in first qeue
+      if (intervals.isEmpty) 0
+      else {
+        // Advance while new value > min value in each bin
+        val s = intervals.filter(_.peekFirst < value)
+        // If at the end, do not overflow
+        if (s.size < nBins - 1) s.size
+        else nBins - 1
+      }
+    log.debug(s"newbin =  $newBin, oldBin = $bin")
+
+    if (bin >= newBin) {
+      // Shuffle excess values up
+      V.zipWithIndex.
+        slice(newBin, bin).
+        foreach {
+          case (q, i) =>
+            V(i + 1) add (q.pollLast)
+        }
+    } // Shuffle excess values down
+    else {
+      V.zipWithIndex.
+        slice(bin, newBin).
+        foreach {
+          case (q, i) =>
+            V(i) add (V(i + 1) pollFirst)
+        }
+    }
+    log.debug(s"Adding $v to bin #$newBin")
+    V(newBin) add v
   }
 
   def nInstances: Int = V.map(_.size).sum
