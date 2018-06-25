@@ -55,7 +55,7 @@ case class IDADiscretizer(
           } else {
             if (randomReservoir(0) <= s / (i + 1)) {
               val randVal = Random nextInt (s)
-              V(i) replace (randVal, attr)
+              //V(i) replace (randVal, attr)
             }
           }
       }
@@ -102,9 +102,6 @@ private[this] case class IntervalHeap(
     // Find the target bin
     val t = Vsize % nBins
 
-    //[1.0;6.0](2) [2.0;7.0](2) [3.0;8.0](2) [4.0;9.0](2) [5.0;10.0](2)
-    //[1.0;1.0](1) [2.0;2.0](1) [3.0;3.0](1) [4.0;4.0](1) [5.0;10.0](6)
-
     val v = V filter (q => !q.isEmpty)
     val j =
       // V is empty completely, insert first value in first qeue
@@ -117,51 +114,25 @@ private[this] case class IntervalHeap(
         else nBins - 1
       }
 
-    //var j_ = j
-    //while (j_ < t && value >= V(j_).peekLast) j_ = j_ + 1
-    //log.debug(s"$j_")
-
     val vv = V slice (j, t)
     val nj =
       if (!vv.isEmpty) V indexOf (vv minBy (_.peekLast < value))
       else j
-    // [1.0;2.0](2) [3.0;4.0](2) [5.0;6.0](2) [7.0;8.0](2) [9.0;10.0](2)
-    //var j_ = nj
-    //var t_ = t
-    //if (t_ >= j_) {
-    //  while (j_ < t_) {
-    //    val d = V(t_ - 1).pollLast
-    //    V(t_) add d
-    //    t_ = t_ - 1
-    //  }
-    //} else {
-    //  while (j_ > t_) {
-    //    val d = V(t_ + 1).pollFirst
-    //    V(t_) add d
-    //    t_ = t_ + 1
-    //  }
-    //}
-    // Shuffle excess values up
-    //[1.0;4.0](4) [5.0;5.0](1) [;][9.0;9.0](1) [6.0;10.0](4)
-    //[1.0;2.0](2) [3.0;4.0](2) [5.0;6.0](2) [7.0;8.0](2) [9.0;10.0](2)
+
     if (t >= j) {
-      //log.debug(s"VALUES UP: t = $t, j = $j, slice = ${V slice (j, t)}, $V")
       V.zipWithIndex.
         slice(j, t).
         foreach {
           case (q, i) =>
-            //            log.debug(s"\t\t($q, $i)")
             V(i + 1) add (q.pollLast)
         }
     } // Shuffle excess values down
     else {
-      //      log.debug(s"VALUES DOWN: t = $t, j = $j, slice = ${V slice (t, j)}, $V")
       V.zipWithIndex.
         slice(t, j).
         foreach {
           case (q, i) =>
             V(i) add (V(i + 1) pollFirst)
-          //            log.debug(s"\t\t($q, $i)")
         }
     }
 
@@ -249,6 +220,7 @@ private[this] case class IntervalHeap(
   }
 
   private[this] def checkIntervalHeap = {
+    log.debug(s"${this.toString}")
     V.zipWithIndex
       .slice(0, V.size - 1)
       .foreach {
@@ -256,9 +228,9 @@ private[this] case class IntervalHeap(
           if (!q.isEmpty && !V(i + 1).isEmpty) {
             // Check Size
             if (q.size < V(i + 1).size)
-              log.warn(s"Wrong size: ${this.toString}")
+              log.warn(s"Wrong size: ${q.size} < ${V(i + 1).size}")
             if (q.peekLast > V(i + 1).peekFirst)
-              log.warn(s"Wrong order: ${this.toString}")
+              log.warn(s"Wrong order: ${q.peekLast} > ${V(i + 1).peekFirst}")
           }
       }
   }
