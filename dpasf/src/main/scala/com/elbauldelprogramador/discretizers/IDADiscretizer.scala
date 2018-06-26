@@ -55,7 +55,7 @@ case class IDADiscretizer(
           } else {
             if (randomReservoir(0) <= s / (i + 1)) {
               val randVal = Random nextInt (s)
-              //V(i) replace (randVal, attr)
+              V(i) replace (randVal, attr)
             }
           }
       }
@@ -87,9 +87,29 @@ private[this] case class IntervalHeap(
   type jDouble = java.lang.Double
 
   private[this] val log = LoggerFactory.getLogger(this.getClass)
-
-  private lazy val V: Vector[MinMaxPriorityQueue[jDouble]] =
+  private[this] lazy val V: Vector[MinMaxPriorityQueue[jDouble]] =
     Vector.tabulate(nBins)(_ => MinMaxPriorityQueue.create())
+  private[this] var nSamples = 0
+
+  private[this] def shuffleUp(iBin: Int, tBin: Int): Unit = {
+    @tailrec
+    def go(bin: Int): Unit =
+      if (iBin < bin) {
+        V(bin) add (V(bin - 1) pollLast)
+        go(bin - 1)
+      }
+    go(tBin)
+  }
+
+  private[this] def shuffleDown(iBin: Int, tBin: Int): Unit = {
+    @tailrec
+    def go(bin: Int): Unit =
+      if (iBin > bin) {
+        V(bin) add (V(bin + 1) pollFirst)
+        go(bin + 1)
+      }
+    go(tBin)
+  }
 
   /**
    * Insert the value into the IntervalHeap
@@ -97,47 +117,38 @@ private[this] case class IntervalHeap(
    * @param value the value to add
    */
   def insert(value: Double): Unit = {
-    // Count how many elements are in V
-    val Vsize = V.map(_.size).sum
-    // Find the target bin
-    val t = Vsize % nBins
+    log.debug(s"insert($value): $V")
+    val targetbin = nSamples % nBins
 
-    val v = V filter (q => !q.isEmpty)
-    val j =
-      // V is empty completely, insert first value in first qeue
-      if (v.isEmpty) 0
-      else {
-        // Advance while new value > min value in each bin
-        val s = v.filter(_.peekFirst < value)
-        // If at the end, do not overflow
-        if (s.size < nBins - 1) s.size
-        else nBins - 1
-      }
+    // TODO Improve this code
+    var loc = 0; /// < the bin into which this value goes
 
-    val vv = V slice (j, t)
-    val nj =
-      if (!vv.isEmpty) V indexOf (vv minBy (_.peekLast < value))
-      else j
-
-    if (t >= j) {
-      V.zipWithIndex.
-        slice(j, t).
-        foreach {
-          case (q, i) =>
-            V(i + 1) add (q.pollLast)
-        }
-    } // Shuffle excess values down
-    else {
-      V.zipWithIndex.
-        slice(t, j).
-        foreach {
-          case (q, i) =>
-            V(i) add (V(i + 1) pollFirst)
-        }
+    // advance while v can't go into this bin
+    while (loc < nBins - 1 && !V(loc + 1).isEmpty && value > V(loc + 1).peekFirst) {
+      loc += 1
     }
 
-    V(j) add value
-    // TODO Check order /w Delta Iterate Operator flink
+    // no bin before targetbin can be empty
+    while (loc < targetbin && value >= V(loc).peekLast) {
+      // v falls between intervals so insert into the one closer to the
+      // target
+      loc += 1
+    }
+    // END Improve this code
+
+    val insertBin = loc
+
+    if (targetbin >= insertBin) {
+      // Shuffle values up
+      shuffleUp(insertBin, targetbin)
+    } else {
+      // Shuffle values down
+      shuffleDown(insertBin, targetbin)
+    }
+
+    V(insertBin) add value
+    nSamples += 1
+
     checkIntervalHeap
   }
 
@@ -194,11 +205,12 @@ private[this] case class IntervalHeap(
     }
     log.debug(s"Adding $v to bin #$newBin")
     V(newBin) add v
+    nSamples += 1
 
     checkIntervalHeap
   }
 
-  def nInstances: Int = V.map(_.size).sum
+  def nInstances: Int = nSamples //V.map(_.size).sum
 
   /**
    * Find in which bin is the element located at index i

@@ -1,4 +1,7 @@
 import com.elbauldelprogramador.discretizers.IDADiscretizer
+import java.util.concurrent.TimeUnit
+import org.apache.flink.api.common.restartstrategy.RestartStrategies
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
@@ -6,6 +9,10 @@ import org.apache.flink.ml.math.DenseVector
 object fixtures {
   val env = ExecutionEnvironment.getExecutionEnvironment
   env.setParallelism(1)
+  env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
+    3, // number of restart attempts
+    Time.of(10, TimeUnit.SECONDS) // delay
+  ))
 
   val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
   //val dataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
