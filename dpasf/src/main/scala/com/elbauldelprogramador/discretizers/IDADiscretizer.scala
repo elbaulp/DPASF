@@ -23,6 +23,7 @@ import scala.util.Random
 import com.elbauldelprogramador.utils.SamplingUtils
 import com.google.common.collect.MinMaxPriorityQueue
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.extensions._
 import org.apache.flink.ml.common.LabeledVector
 import org.slf4j.LoggerFactory
 
@@ -39,11 +40,11 @@ case class IDADiscretizer(
   nBins: Int = 5,
   s: Int = 10) {
 
-  private[this] val log = LoggerFactory.getLogger("IDADiscretizer")
+  private[this] val log = LoggerFactory.getLogger(this.getClass)
   private[this] val V = Vector.tabulate(nAttrs)(i => IntervalHeap(nBins, i, s))
   private[this] val randomReservoir = SamplingUtils.reservoirSample((1 to s).toList.iterator, 1)
 
-  private[this] def updateSamples(v: LabeledVector) /*: Vector[IntervalHeap]*/ = {
+  private[this] def updateSamples(v: LabeledVector): Vector[IntervalHeap] = {
     val attrs = v.vector.map(_._2)
     // TODO: Check for missing values
     attrs
@@ -59,11 +60,13 @@ case class IDADiscretizer(
             }
           }
       }
+    V
   }
 
   def discretize(data: DataSet[LabeledVector]) /*: DataSet[IntervalHeap]*/ = {
     val d = data map (x => updateSamples(x))
     d print
+
   }
 }
 
@@ -117,7 +120,7 @@ private[this] case class IntervalHeap(
    * @param value the value to add
    */
   def insert(value: Double): Unit = {
-    log.debug(s"insert($value): $V")
+    log.info(s"insert($value)")
     val targetbin = nSamples % nBins
 
     // TODO Improve this code
@@ -159,7 +162,7 @@ private[this] case class IntervalHeap(
    * @param v the replacement value
    */
   def replace(i: Int, v: Double) = {
-    log.info(s"replace($i, $v), $V")
+    log.info(s"replace($i, $v)")
     // Find the target bin
     val (bin, index) = findTBin(i)
     // Find the value
@@ -170,7 +173,7 @@ private[this] case class IntervalHeap(
         throw new ClassCastException("A double was expected ")
 
     }
-    log.debug(s"Removing $value from bin #$bin")
+
     V(bin).remove(value)
     // Find bin for new value
     val intervals = V filter (q => !q.isEmpty)
@@ -184,7 +187,6 @@ private[this] case class IntervalHeap(
         if (s.size < nBins - 1) s.size
         else nBins - 1
       }
-    log.debug(s"newbin =  $newBin, oldBin = $bin")
 
     if (bin >= newBin) {
       // Shuffle excess values up
@@ -203,7 +205,7 @@ private[this] case class IntervalHeap(
             V(i) add (V(i + 1) pollFirst)
         }
     }
-    log.debug(s"Adding $v to bin #$newBin")
+
     V(newBin) add v
     nSamples += 1
 
@@ -232,7 +234,7 @@ private[this] case class IntervalHeap(
   }
 
   private[this] def checkIntervalHeap = {
-    log.debug(s"${this.toString}")
+    log.info("Checking IntervalHeap")
     V.zipWithIndex
       .slice(0, V.size - 1)
       .foreach {

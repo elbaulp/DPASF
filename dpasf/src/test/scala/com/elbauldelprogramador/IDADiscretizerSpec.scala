@@ -5,6 +5,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
+import scala.util.Random
 
 object fixtures {
   val env = ExecutionEnvironment.getExecutionEnvironment
@@ -14,16 +15,21 @@ object fixtures {
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
 
-  val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
+  //val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
   //val dataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
-  //val data = (0 to 10).map(_ => Seq(Random.nextDouble, Random.nextDouble, Random.nextString(3)))
+  val data = (1 to 10).map(_ => Seq(Random.nextDouble, Random.nextDouble))
+  val dataSet = env.fromCollection(data map { tuple =>
+    val list = tuple.iterator.toList
+    val numList = list map (_.asInstanceOf[Double])
+    LabeledVector(numList(1), DenseVector(numList.take(1).toArray))
+  })
   //val data1 = env.fromCollection(data)
-  val dataSet = data
-    .map { tuple =>
-      val list = tuple.productIterator.toList
-      val numList = list map (_.asInstanceOf[Double])
-      LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
-    }
+  // dataSet = data
+  //map { tuple =>
+  // val list = tuple.productIterator.toList
+  // val numList = list map (_.asInstanceOf[Double])
+  // LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
+  //
   //  val dataSet = env.readCsvFile[ElecNormNew](
   //    getClass.getResource("/elecNormNew.arff").getPath,
   //    pojoFields = Array("date", "day", "period", "nswprice", "nswdemand", "vicprice", "vicdemand", "transfer", "label"))
@@ -35,7 +41,7 @@ class IDADiscretizerSpec extends BddSpec {
   "A Category" - {
     "When calling its Identity" - {
       "Should be computed correctly" in {
-        val a = IDADiscretizer(nAttrs = 4)
+        val a = IDADiscretizer(nAttrs = 1)
         val r = a.discretize(dataSet)
       }
     }
