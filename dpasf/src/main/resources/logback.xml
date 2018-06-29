@@ -32,7 +32,7 @@
         </encoder>
     </appender>
     <logger name="com.elbauldelprogramador" level="debug" />
-    <logger name="org.apache.flink" level="WARN"/>
+    <logger name="org.apache.flink" level="warn"/>
     <root level="debug">
         <appender-ref ref="STDOUT" />
     </root>

@@ -22,7 +22,7 @@ import scala.util.Random
 
 import org.apache.flink.util.XORShiftRandom
 
-private[elbauldelprogramador] object SamplingUtils {
+private[elbauldelprogramador] object SamplingUtils extends Serializable {
 
   /**
    * Reservoir sampling implementation that also returns the input size.

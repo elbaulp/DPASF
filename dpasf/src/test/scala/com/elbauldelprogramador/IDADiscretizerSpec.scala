@@ -7,42 +7,43 @@ import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 import scala.util.Random
 
-object fixtures {
-  val env = ExecutionEnvironment.getExecutionEnvironment
+object fixtures extends Serializable {
+  //val env = ExecutionEnvironment.getExecutionEnvironment
+  val env = ExecutionEnvironment.createLocalEnvironment()
   env.setParallelism(1)
   env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
     3, // number of restart attempts
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
 
-  //val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
+  val data = env.readCsvFile[Iris](getClass.getResource("/iris2.dat").getPath)
   //val dataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
-  val data = (1 to 10).map(_ => Seq(Random.nextDouble, Random.nextDouble))
-  val dataSet = env.fromCollection(data map { tuple =>
-    val list = tuple.iterator.toList
-    val numList = list map (_.asInstanceOf[Double])
-    LabeledVector(numList(1), DenseVector(numList.take(1).toArray))
-  })
+  //  val data = (1 to 10).map(_ => Seq(Random.nextDouble, Random.nextDouble, Random.nextInt))
+  //  val dataSet = env.fromCollection(data map { tuple =>
+  //    val list = tuple.iterator.toList
+  //    val numList = list map (_.asInstanceOf[Double])
+  //    LabeledVector(numList(2), DenseVector(numList.take(2).toArray))
+  //  })
   //val data1 = env.fromCollection(data)
-  // dataSet = data
-  //map { tuple =>
-  // val list = tuple.productIterator.toList
-  // val numList = list map (_.asInstanceOf[Double])
-  // LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
-  //
+  val dataSet = data map { tuple =>
+    val list = tuple.productIterator.toList
+    val numList = list map (_.asInstanceOf[Double])
+    LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
+  }
   //  val dataSet = env.readCsvFile[ElecNormNew](
   //    getClass.getResource("/elecNormNew.arff").getPath,
   //    pojoFields = Array("date", "day", "period", "nswprice", "nswdemand", "vicprice", "vicdemand", "transfer", "label"))
 }
 
 // BDD tests
-class IDADiscretizerSpec extends BddSpec {
+class IDADiscretizerSpec extends BddSpec with Serializable {
   import fixtures._
   "A Category" - {
     "When calling its Identity" - {
       "Should be computed correctly" in {
-        val a = IDADiscretizer(nAttrs = 1)
+        val a = IDADiscretizer(nAttrs = 4)
         val r = a.discretize(dataSet)
+        r print
       }
     }
     "When composing it" - {

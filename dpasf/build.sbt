@@ -14,7 +14,6 @@ scalaVersion in ThisBuild := "2.11.3"
 val flinkVersion = "1.5.0"
 
 val genericDeps = Seq(
-  "com.google.guava" % "guava" % "24.0-jre",
   "nz.ac.waikato.cms.moa" % "moa" % "2017.06"
 )
 
@@ -34,7 +33,8 @@ val loggers = Seq(
 
 lazy val root = (project in file(".")).
   settings(
-    libraryDependencies ++= flinkDependencies ++ testDeps ++ genericDeps ++ loggers
+    libraryDependencies ++= flinkDependencies ++ testDeps ++ genericDeps ++ loggers,
+    scalacOptions += "-Xlog-implicits"
   )
 
 mainClass in assembly := Some("com.elbauldelprogramador.Job")
