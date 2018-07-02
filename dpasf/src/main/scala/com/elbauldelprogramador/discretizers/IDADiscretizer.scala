@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory
 /**
  * Incremental Discretization Algorithm
  *
- * @param data DataSet to sample from
  * @param nBins number of bins
  * @param s sample size
  *
@@ -40,10 +39,10 @@ case class IDADiscretizer(
 
   private[this] val log = LoggerFactory.getLogger(this.getClass)
   //private[this] val V = Vector.tabulate(nAttrs)(i => IntervalHeapWrapper(nBins, i, s))
-  private[this] val V = Vector.tabulate(nAttrs)(i => new IntervalHeapWrapper(nBins, s, i))
-  val randomReservoir = SamplingUtils.reservoirSample((1 to s).toList.iterator, 1)
+  private[this] val V = Vector.tabulate(nAttrs)(i => new IntervalHeapWrapper(nBins, i))
+  private[this] val randomReservoir = SamplingUtils.reservoirSample((1 to s).toList.iterator, 1)
 
-  def updateSamples(v: LabeledVector) /*: Vector[IntervalHeap]*/ = {
+  def updateSamples(v: LabeledVector): Vector[IntervalHeapWrapper] = {
     val attrs = v.vector.map(_._2)
     val label = v.label
     // TODO: Check for missing values
@@ -52,19 +51,24 @@ case class IDADiscretizer(
       .foreach {
         case (attr, i) =>
           if (V(i).getNbSamples < s) {
-            V(i) insertValue (attr) // insert
+            V(i) insertValue attr // insert
           } else {
             if (randomReservoir(0) <= s / (i + 1)) {
-              val randVal = Random nextInt (s)
-              // TODO V(i) replace (randVal, attr)
-              V(i) insertValue (attr)
+              //val randVal = Random nextInt s
+              //V(i) replace (randVal, attr)
+              V(i) insertValue attr
             }
           }
       }
     V
   }
 
-  def discretize(data: DataSet[LabeledVector]) /*: DataSet[IntervalHeap]*/ = {
+  def cutPoints: Seq[Double] = {
+
+    ???
+  }
+
+  def discretize(data: DataSet[LabeledVector]): DataSet[Vector[IntervalHeapWrapper]] = {
     data map (x => updateSamples(x))
   }
 }
