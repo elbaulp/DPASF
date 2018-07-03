@@ -40,6 +40,14 @@ case class IDADiscretizer(
   private[this] val V = Vector.tabulate(nAttrs)(i => new IntervalHeapWrapper(nBins, i))
   private[this] val randomReservoir = SamplingUtils.reservoirSample((1 to s).toList.iterator, 1)
 
+  /**
+   * Discretize the given LabeledVector
+   *
+   * @param v LabeledVector to discretize
+   *
+   * @return LabeledVector in which each value corresponds
+   * with the bin the value was discretized to.
+   */
   private[this] def updateSamples(v: LabeledVector): LabeledVector = {
     val attrs = v.vector.map(_._2)
     val label = v.label
@@ -64,7 +72,14 @@ case class IDADiscretizer(
       }
   }
 
-  private[this] def computeCutPoints(x: LabeledVector) = {
+  /**
+   * Computes the current cutpoints for the discretization
+   *
+   * @param x LabeledVector to wich compute its cutpoints
+   *
+   * @return A Vector[IntervalHeapWrapper] containing the discretized data
+   */
+  private[this] def computeCutPoints(x: LabeledVector): Vector[IntervalHeapWrapper] = {
     val attrs = x.vector.map(_._2)
     val label = x.label
     attrs
@@ -77,10 +92,34 @@ case class IDADiscretizer(
   }
 
   /**
+   * Map a value to its corresponding bin
+   *
+   * @param vs LabeledVector attributes
+   * @param cuts The cutpoints for each attribute and its bins
+   *
+   * @return The attributes assigned to its bins
+   */
+  private[this] def assignDiscreteValue(vs: Seq[Double], cuts: Seq[Seq[Double]]): Seq[Double] =
+    vs.zipWithIndex.map {
+      case (v, i) =>
+        (cuts(i) indexWhere (v <= _)).toDouble
+    }
+
+  def discretizeWith(cuts: Vector[Vector[Double]], data: DataSet[LabeledVector]): DataSet[LabeledVector] =
+    data map { l =>
+      val attrs = l.vector.map(_._2).toSeq
+      val discretized = assignDiscreteValue(attrs, cuts)
+      LabeledVector(l.label, DenseVector(discretized.toArray))
+    }
+
+  /**
    * Return the cutpoints for the discretization
    *
+   * @param data The Dataset to obtain the cutpoints from.
+   *
+   * @return A Vector[Vector[Double]] containing the cutpoints for each bin
    */
-  def cutPoints(data: DataSet[LabeledVector]): Seq[Seq[Double]] =
+  def cutPoints(data: DataSet[LabeledVector]): Vector[Vector[Double]] =
     data.map(computeCutPoints _)
       .collect
       .last.map(_.getBoundaries.toVector)
