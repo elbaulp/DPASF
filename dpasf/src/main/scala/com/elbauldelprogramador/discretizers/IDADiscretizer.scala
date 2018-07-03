@@ -17,12 +17,11 @@
 
 package com.elbauldelprogramador.discretizers
 
-import scala.util.Random
-
 import com.elbauldelprogramador.datastructures.IntervalHeapWrapper
 import com.elbauldelprogramador.utils.SamplingUtils
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.math.DenseVector
 import org.slf4j.LoggerFactory
 
 /**
@@ -38,37 +37,55 @@ case class IDADiscretizer(
   s: Int = 5) extends Serializable {
 
   private[this] val log = LoggerFactory.getLogger(this.getClass)
-  //private[this] val V = Vector.tabulate(nAttrs)(i => IntervalHeapWrapper(nBins, i, s))
   private[this] val V = Vector.tabulate(nAttrs)(i => new IntervalHeapWrapper(nBins, i))
   private[this] val randomReservoir = SamplingUtils.reservoirSample((1 to s).toList.iterator, 1)
 
-  def updateSamples(v: LabeledVector): Vector[IntervalHeapWrapper] = {
+  private[this] def updateSamples(v: LabeledVector): LabeledVector = {
     val attrs = v.vector.map(_._2)
     val label = v.label
     // TODO: Check for missing values
     attrs
       .zipWithIndex
-      .foreach {
-        case (attr, i) =>
-          if (V(i).getNbSamples < s) {
-            V(i) insertValue attr // insert
-          } else {
-            if (randomReservoir(0) <= s / (i + 1)) {
-              //val randVal = Random nextInt s
-              //V(i) replace (randVal, attr)
-              V(i) insertValue attr
-            }
-          }
+      .foldLeft(LabeledVector(label, DenseVector.init(attrs size, -1000))) {
+        case (lv, (x, i)) =>
+          //          if (V(i).getNbSamples < s) {
+          V(i) insertValue x // insert
+          lv.vector.update(i, V(i) getBin x)
+          lv
+        //          } else {
+        //            if (randomReservoir(0) <= s / (i + 1)) {
+        //val randVal = Random nextInt s
+        //V(i) replace (randVal, attr)
+        //              V(i) insertValue d
+        //              lv
+        //            }
+        //            lv
+        //          }
       }
-    V
   }
 
-  def cutPoints: Seq[Double] = {
-
-    ???
+  private[this] def computeCutPoints(x: LabeledVector) = {
+    val attrs = x.vector.map(_._2)
+    val label = x.label
+    attrs
+      .zipWithIndex
+      .foldLeft(V) {
+        case (iv, (v, i)) =>
+          iv(i) insertValue v
+          iv
+      }
   }
 
-  def discretize(data: DataSet[LabeledVector]): DataSet[Vector[IntervalHeapWrapper]] = {
-    data map (x => updateSamples(x))
-  }
+  /**
+   * Return the cutpoints for the discretization
+   *
+   */
+  def cutPoints(data: DataSet[LabeledVector]): Seq[Seq[Double]] =
+    data.map(computeCutPoints _)
+      .collect
+      .last.map(_.getBoundaries.toVector)
+
+  def discretize(data: DataSet[LabeledVector]): DataSet[LabeledVector] =
+    data.map(updateSamples _)
+
 }

@@ -11,6 +11,7 @@ object fixtures extends Serializable {
   //val env = ExecutionEnvironment.getExecutionEnvironment
   val env = ExecutionEnvironment.createLocalEnvironment()
   env.setParallelism(1)
+  //  env.getConfig.enableObjectReuse
   env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
     3, // number of restart attempts
     Time.of(10, TimeUnit.SECONDS) // delay
@@ -42,8 +43,11 @@ class IDADiscretizerSpec extends BddSpec with Serializable {
     "When calling its Identity" - {
       "Should be computed correctly" in {
         val a = IDADiscretizer(nAttrs = 4)
-        val r = a.discretize(dataSet)
-        r print
+        val d = a.discretize(dataSet)
+        val cuts = a.cutPoints(dataSet)
+        d.print
+        cuts foreach println
+
       }
     }
     "When composing it" - {

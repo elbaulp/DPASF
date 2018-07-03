@@ -270,5 +270,3 @@ public class IntervalHeapWrapper implements Serializable {
         return res;
     }
 }
-
-

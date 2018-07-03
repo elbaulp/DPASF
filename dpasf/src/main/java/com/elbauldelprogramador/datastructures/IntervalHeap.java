@@ -206,7 +206,7 @@ public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable 
             return e;
         }
     }
-    
+
     /**
      * Removing arbitrary elements is not supported.
      */
