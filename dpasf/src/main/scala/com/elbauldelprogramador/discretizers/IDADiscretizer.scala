@@ -80,7 +80,7 @@ case class IDADiscretizer(
    * @return A Vector[IntervalHeapWrapper] containing the discretized data
    */
   private[this] def computeCutPoints(x: LabeledVector): Vector[IntervalHeapWrapper] = {
-    val attrs = x.vector.map(_._2)
+    val attrs = x.vector map (_._2)
     val label = x.label
     attrs
       .zipWithIndex
@@ -100,16 +100,16 @@ case class IDADiscretizer(
    * @return The attributes assigned to its bins
    */
   private[this] def assignDiscreteValue(vs: Seq[Double], cuts: Seq[Seq[Double]]): Seq[Double] =
-    vs.zipWithIndex.map {
+    vs.zipWithIndex map {
       case (v, i) =>
         (cuts(i) indexWhere (v <= _)).toDouble
     }
 
   def discretizeWith(cuts: Vector[Vector[Double]], data: DataSet[LabeledVector]): DataSet[LabeledVector] =
     data map { l =>
-      val attrs = l.vector.map(_._2).toSeq
-      val discretized = assignDiscreteValue(attrs, cuts)
-      LabeledVector(l.label, DenseVector(discretized.toArray))
+      val attrs = l.vector map (_._2) toSeq
+      val dattrs = assignDiscreteValue(attrs, cuts)
+      LabeledVector(l.label, DenseVector(dattrs.toArray))
     }
 
   /**
@@ -122,9 +122,9 @@ case class IDADiscretizer(
   def cutPoints(data: DataSet[LabeledVector]): Vector[Vector[Double]] =
     data.map(computeCutPoints _)
       .collect
-      .last.map(_.getBoundaries.toVector)
+      .last map (_.getBoundaries.toVector)
 
   def discretize(data: DataSet[LabeledVector]): DataSet[LabeledVector] =
-    data.map(updateSamples _)
+    data map updateSamples _
 
 }

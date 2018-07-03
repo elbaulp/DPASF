@@ -46,9 +46,7 @@ class IDADiscretizerSpec extends BddSpec with Serializable {
         val discretized = a.discretize(dataSet)
         val cuts = a.cutPoints(dataSet)
         val discretized2 = a discretizeWith (cuts, dataSet)
-        discretized.print
-        discretized2.print
-        assert(discretized === discretized2)
+        assert(discretized.collect.last === discretized2.collect.last)
       }
     }
     "When composing it" - {
