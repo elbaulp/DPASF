@@ -29,8 +29,9 @@ import java.util.LinkedHashSet;
  * Each IntervalHeap V, $V_i^j$ stores the values for the j-th bin
  * of $X_i$
  * <p>
- * An adaptation of https://github.com/sramirez/MOAReduction/blob/master/src/moa/reduction/bayes/IntervalHeap.java
+ * An adaptation of [[https://github.com/sramirez/MOAReduction/blob/master/src/moa/reduction/bayes/IntervalHeap.java]]
  *
+ * @constructor
  * @param nBins     Number of bins to use for discretize
  * @param attrIndex Index of the attribute
  */
