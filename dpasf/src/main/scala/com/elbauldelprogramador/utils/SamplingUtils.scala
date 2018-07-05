@@ -25,18 +25,18 @@ import scala.util.Random
 private[elbauldelprogramador] object SamplingUtils extends Serializable {
 
   /**
-    * Reservoir sampling implementation that also returns the input size.
-    * taken from https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/util/random/SamplingUtils.scala
-    *
-    * @param input input size
-    * @param k     reservoir size
-    * @param seed  random seed
-    * @return samples
-    */
+   * Reservoir sampling implementation that also returns the input size.
+   * taken from [[https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/util/random/SamplingUtils.scala]]
+   *
+   * @param input input size
+   * @param k     reservoir size
+   * @param seed  random seed
+   * @return samples
+   */
   def reservoirSample[T: ClassTag](
-                                    input: Iterator[T],
-                                    k: Int,
-                                    seed: Long = Random.nextLong()): Array[T] = {
+    input: Iterator[T],
+    k: Int,
+    seed: Long = Random.nextLong()): Array[T] = {
     val reservoir = new Array[T](k)
     // Put the first k elements in the reservoir.
     var i = 0
