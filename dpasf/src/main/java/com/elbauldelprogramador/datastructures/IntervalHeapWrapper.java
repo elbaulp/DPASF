@@ -31,9 +31,6 @@ import java.util.LinkedHashSet;
  * <p>
  * An adaptation of [[https://github.com/sramirez/MOAReduction/blob/master/src/moa/reduction/bayes/IntervalHeap.java]]
  *
- * @constructor
- * @param nBins     Number of bins to use for discretize
- * @param attrIndex Index of the attribute
  */
 public class IntervalHeapWrapper implements Serializable {
 
@@ -46,6 +43,12 @@ public class IntervalHeapWrapper implements Serializable {
     // double priority queues
     final private IntervalHeap<Double>[] values;
 
+    /**
+     * Creates a new interval
+     *
+     * @param nBins numbers of bins to create for each attribute
+     * @param attrIndex index of the attribute
+     */
     public IntervalHeapWrapper(int nBins, int attrIndex) {
         this.nBins = nBins;
         values = new IntervalHeap[nBins];

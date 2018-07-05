@@ -83,7 +83,6 @@ case class IDADiscretizer(
    */
   private[this] def computeCutPoints(x: LabeledVector): Vector[IntervalHeapWrapper] = {
     val attrs = x.vector map (_._2)
-    val label = x.label
     attrs
       .zipWithIndex
       .foldLeft(V) {

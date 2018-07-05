@@ -32,40 +32,40 @@ public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable 
 
 
     public IntervalHeap() {
-        cmp = new NaturalComparator<E>();
-        queue = new ArrayList<E>();
+        cmp = new NaturalComparator<>();
+        queue = new ArrayList<>();
     }
 
     public IntervalHeap(IntervalHeap<E> other) {
         cmp = other.cmp;
-        queue = new ArrayList<E>(other.queue);
+        queue = new ArrayList<>(other.queue);
     }
 
     public IntervalHeap(Comparator<E> comparator) {
         cmp = comparator;
-        queue = new ArrayList<E>();
+        queue = new ArrayList<>();
     }
 
     public IntervalHeap(Collection<? extends E> c) {
-        cmp = new NaturalComparator<E>();
-        queue = new ArrayList<E>(c);
+        cmp = new NaturalComparator<>();
+        queue = new ArrayList<>(c);
         heapify();
     }
 
     public IntervalHeap(Collection<? extends E> c, Comparator<E> comparator) {
         cmp = comparator;
-        queue = new ArrayList<E>(c);
+        queue = new ArrayList<>(c);
         heapify();
     }
 
     public IntervalHeap(int initialCapacity) {
-        cmp = new NaturalComparator<E>();
-        queue = new ArrayList<E>(initialCapacity);
+        cmp = new NaturalComparator<>();
+        queue = new ArrayList<>(initialCapacity);
     }
 
     public IntervalHeap(int initialCapacity, Comparator<E> comparator) {
         cmp = comparator;
-        queue = new ArrayList<E>(initialCapacity);
+        queue = new ArrayList<>(initialCapacity);
     }
 
     /**
