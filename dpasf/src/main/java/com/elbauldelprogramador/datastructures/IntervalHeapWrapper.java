@@ -30,7 +30,6 @@ import java.util.LinkedHashSet;
  * of $X_i$
  * <p>
  * An adaptation of [[https://github.com/sramirez/MOAReduction/blob/master/src/moa/reduction/bayes/IntervalHeap.java]]
- *
  */
 public class IntervalHeapWrapper implements Serializable {
 
@@ -38,15 +37,15 @@ public class IntervalHeapWrapper implements Serializable {
     final private int attrIndex;
     // number of bins
     final private int nBins;
-    // number of samples seen in this discretization
-    private int nbSamples;
     // double priority queues
     final private IntervalHeap<Double>[] values;
+    // number of samples seen in this discretization
+    private int nbSamples;
 
     /**
      * Creates a new interval
      *
-     * @param nBins numbers of bins to create for each attribute
+     * @param nBins     numbers of bins to create for each attribute
      * @param attrIndex index of the attribute
      */
     public IntervalHeapWrapper(int nBins, int attrIndex) {

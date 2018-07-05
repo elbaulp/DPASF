@@ -1,12 +1,5 @@
 package com.elbauldelprogramador
 
-import scala.util.Random
-
-import com.elbauldelprogramador.discretizers.IDADiscretizer
-import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.DenseVector
-
 object Main {
 
   def main(args: Array[String]) {

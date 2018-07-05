@@ -1,7 +1,7 @@
 package com.elbauldelprogramador.datastructures;
 
-import java.util.Comparator;
 import java.io.Serializable;
+import java.util.Comparator;
 
 class NaturalComparator<E> implements Comparator<E>, Serializable {
     @Override

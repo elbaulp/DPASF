@@ -25,31 +25,79 @@ import org.apache.flink.ml.math.DenseVector
 import org.slf4j.LoggerFactory
 
 /**
- * Incremental Discretization Algorithm
- *
- * @param nBins number of bins
- * @param s sample size
- *
+  * Incremental Discretization Algorithm
   *
+  * @param nBins number of bins
+  * @param s     sample size
   * @constructor
- */
+  */
 case class IDADiscretizer(
-  nAttrs: Int,
-  nBins: Int = 5,
-  s: Int = 5) extends Serializable {
+                           nAttrs: Int,
+                           nBins: Int = 5,
+                           s: Int = 5) extends Serializable {
 
   private[this] val log = LoggerFactory.getLogger(this.getClass)
   private[this] val V = Vector.tabulate(nAttrs)(i => new IntervalHeapWrapper(nBins, i))
   private[this] val randomReservoir = SamplingUtils.reservoirSample((1 to s).toList.iterator, 1)
 
+  def discretizeWith(cuts: Vector[Vector[Double]], data: DataSet[LabeledVector]): DataSet[LabeledVector] =
+    data map { l =>
+      val attrs = l.vector map (_._2) toSeq
+      val dattrs = assignDiscreteValue(attrs, cuts)
+      LabeledVector(l.label, DenseVector(dattrs.toArray))
+    }
+
   /**
-   * Discretize the given LabeledVector
-   *
-   * @param v LabeledVector to discretize
-   *
-   * @return LabeledVector in which each value corresponds
-   * with the bin the value was discretized to.
-   */
+    * Map a value to its corresponding bin
+    *
+    * @param vs   LabeledVector attributes
+    * @param cuts The cutpoints for each attribute and its bins
+    * @return The attributes assigned to its bins
+    */
+  private[this] def assignDiscreteValue(vs: Seq[Double], cuts: Seq[Seq[Double]]): Seq[Double] =
+    vs.zipWithIndex map {
+      case (v, i) =>
+        (cuts(i) indexWhere (v <= _)).toDouble
+    }
+
+  /**
+    * Return the cutpoints for the discretization
+    *
+    * @param data The Dataset to obtain the cutpoints from.
+    * @return A Vector[Vector[Double]] containing the cutpoints for each bin
+    **/
+  def cutPoints(data: DataSet[LabeledVector]): Vector[Vector[Double]] =
+    data.map(computeCutPoints _)
+      .collect
+      .last map (_.getBoundaries.toVector)
+
+  /**
+    * Computes the current cutpoints for the discretization
+    *
+    * @param x LabeledVector to wich compute its cutpoints
+    * @return A Vector[IntervalHeapWrapper] containing the discretized data
+    */
+  private[this] def computeCutPoints(x: LabeledVector): Vector[IntervalHeapWrapper] = {
+    val attrs = x.vector map (_._2)
+    attrs
+      .zipWithIndex
+      .foldLeft(V) {
+        case (iv, (v, i)) =>
+          iv(i) insertValue v
+          iv
+      }
+  }
+
+  def discretize(data: DataSet[LabeledVector]): DataSet[LabeledVector] =
+    data map updateSamples _
+
+  /**
+    * Discretize the given LabeledVector
+    *
+    * @param v LabeledVector to discretize
+    * @return LabeledVector in which each value corresponds
+    *         with the bin the value was discretized to.
+    */
   private[this] def updateSamples(v: LabeledVector): LabeledVector = {
     val attrs = v.vector.map(_._2)
     val label = v.label
@@ -73,59 +121,5 @@ case class IDADiscretizer(
         //          }
       }
   }
-
-  /**
-   * Computes the current cutpoints for the discretization
-   *
-   * @param x LabeledVector to wich compute its cutpoints
-   *
-   * @return A Vector[IntervalHeapWrapper] containing the discretized data
-   */
-  private[this] def computeCutPoints(x: LabeledVector): Vector[IntervalHeapWrapper] = {
-    val attrs = x.vector map (_._2)
-    attrs
-      .zipWithIndex
-      .foldLeft(V) {
-        case (iv, (v, i)) =>
-          iv(i) insertValue v
-          iv
-      }
-  }
-
-  /**
-   * Map a value to its corresponding bin
-   *
-   * @param vs LabeledVector attributes
-   * @param cuts The cutpoints for each attribute and its bins
-   *
-   * @return The attributes assigned to its bins
-   */
-  private[this] def assignDiscreteValue(vs: Seq[Double], cuts: Seq[Seq[Double]]): Seq[Double] =
-    vs.zipWithIndex map {
-      case (v, i) =>
-        (cuts(i) indexWhere (v <= _)).toDouble
-    }
-
-  def discretizeWith(cuts: Vector[Vector[Double]], data: DataSet[LabeledVector]): DataSet[LabeledVector] =
-    data map { l =>
-      val attrs = l.vector map (_._2) toSeq
-      val dattrs = assignDiscreteValue(attrs, cuts)
-      LabeledVector(l.label, DenseVector(dattrs.toArray))
-    }
-
-  /**
-   * Return the cutpoints for the discretization
-   *
-   * @param data The Dataset to obtain the cutpoints from.
-   *
-   * @return A Vector[Vector[Double]] containing the cutpoints for each bin
-   */
-  def cutPoints(data: DataSet[LabeledVector]): Vector[Vector[Double]] =
-    data.map(computeCutPoints _)
-      .collect
-      .last map (_.getBoundaries.toVector)
-
-  def discretize(data: DataSet[LabeledVector]): DataSet[LabeledVector] =
-    data map updateSamples _
 
 }

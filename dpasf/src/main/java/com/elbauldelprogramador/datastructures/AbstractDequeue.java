@@ -1,21 +1,21 @@
 package com.elbauldelprogramador.datastructures;
 
 abstract class AbstractDequeue<E> extends AbstractQueue<E> {
-    @Override
-    public E peek() {
-        return peekFirst();
-    }
-
     abstract public E peekLast();
-
-    protected abstract E peekFirst();
 
     @Override
     public E poll() {
         return pollFirst();
     }
 
-    abstract public E pollLast();
+    @Override
+    public E peek() {
+        return peekFirst();
+    }
+
+    protected abstract E peekFirst();
 
     protected abstract E pollFirst();
+
+    abstract public E pollLast();
 }

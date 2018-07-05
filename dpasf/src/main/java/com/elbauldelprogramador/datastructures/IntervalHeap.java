@@ -20,7 +20,7 @@ import static java.util.Collections.swap;
  * implementation maintains a min heap in the even array indices, and a max heap
  * in the odd array indices. Intervals can be reconstructed from the even odd
  * pairs.
- *
+ * <p>
  * Taken from https://github.com/allenbh/gkutil_java/blob/master/src/gkimfl/util/IntervalHeap.java
  *
  * @param <E> - the type of elements held in this collection
@@ -50,192 +50,6 @@ public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable 
         cmp = new NaturalComparator<>();
         queue = new ArrayList<>(c);
         heapify();
-    }
-
-    public IntervalHeap(Collection<? extends E> c, Comparator<E> comparator) {
-        cmp = comparator;
-        queue = new ArrayList<>(c);
-        heapify();
-    }
-
-    public IntervalHeap(int initialCapacity) {
-        cmp = new NaturalComparator<>();
-        queue = new ArrayList<>(initialCapacity);
-    }
-
-    public IntervalHeap(int initialCapacity, Comparator<E> comparator) {
-        cmp = comparator;
-        queue = new ArrayList<>(initialCapacity);
-    }
-
-    /**
-     * Remove all elements from the heap.
-     */
-    @Override
-    public void clear() {
-        queue.clear();
-    }
-
-    /**
-     * Return true if the heap is empty.
-     */
-    @Override
-    public boolean isEmpty() {
-        return queue.isEmpty();
-    }
-
-    /**
-     * Return an iterator for the elements. This iterator does not yield
-     * elements in sorted order.
-     */
-    @Override
-    public Iterator<E> iterator() {
-        return queue.iterator();
-    }
-
-    /**
-     * Insert several elements into the heap. If the number of elements to be
-     * added is large, this may call heapify for efficiency instead of adding
-     * the elements one at a time.
-     */
-    @Override
-    public boolean addAll(Collection<? extends E> c) {
-        int cSize = c.size();
-        int nSize = cSize + queue.size();
-        if (nSize <= cSize * log(nSize) / log(2)) {
-            queue.addAll(c);
-            heapify();
-            return true;
-        } else {
-            return super.addAll(c);
-        }
-    }
-
-    /**
-     * Insert an element into the heap.
-     */
-    @Override
-    public boolean offer(E e) {
-        queue.add(e);
-        int iBound = queue.size();
-        int i = iBound - 1;
-        if ((i & 1) == 0) {
-            pullUpMax(i);
-            pullUpMin(i);
-        } else {
-            pullUpMax(i);
-            if (lessAt(i, i - 1)) {
-                swap(queue, i, i - 1);
-                pullUpMin(i - 1);
-                pullUpMax(i);
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Return the minimum element.
-     */
-    @Override
-    public E peekFirst() {
-        return queue.get(0);
-    }
-
-    /**
-     * Return the maximum element.
-     */
-    @Override
-    public E peekLast() {
-        if (queue.size() < 2) {
-            return queue.get(0);
-        }
-        return queue.get(1);
-    }
-
-    /**
-     * Return and remove the minimum element.
-     */
-    @Override
-    public E pollFirst() {
-        int iBound = queue.size() - 1;
-        if (iBound < 1) {
-            return queue.remove(0);
-        } else {
-            E e = queue.get(0);
-            if (iBound > 0) {
-                queue.set(0, queue.remove(iBound));
-                int i = pushDownMin(0);
-                if (i + 1 == iBound) {
-                    pullUpMax(i);
-                } else if (i + 1 < iBound && lessAt(i + 1, i)) {
-                    // i is a leaf of the min heap
-                    assert ((i << 1) + 2 > iBound);
-                    swap(queue, i + 1, i);
-                    pullUpMax(i + 1);
-                }
-            }
-            return e;
-        }
-    }
-
-    /**
-     * Return and remove the maximum element.
-     */
-    @Override
-    public E pollLast() {
-        int iBound = queue.size() - 1;
-        if (iBound < 1) {
-            return queue.remove(0);
-        } else {
-            E e = queue.get(1);
-            if (iBound < 2) {
-                queue.remove(1);
-            } else {
-                queue.set(1, queue.remove(iBound));
-                int i = pushDownMax(1);
-                if ((i & 1) == 0) {
-                    assert (i + 1 == iBound);
-                    pullUpMin(i);
-                } else if (lessAt(i, i - 1)) {
-                    // i is a leaf of the max heap
-                    assert ((i << 1) + 1 > iBound);
-                    swap(queue, i, i - 1);
-                    pullUpMin(i - 1);
-                }
-            }
-            return e;
-        }
-    }
-
-    /**
-     * Removing arbitrary elements is not supported.
-     */
-    @Override
-    public boolean removeElem(E e) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Return the number of elements in the heap.
-     */
-    @Override
-    public int size() {
-        return queue.size();
-    }
-
-    /**
-     * Return true if vA should should be ordered prior to vB.
-     */
-    private boolean less(E vA, E vB) {
-        return cmp.compare(vA, vB) < 0;
-    }
-
-    /**
-     * Return true if the value at iA should should be ordered prior to the
-     * value at iB.
-     */
-    private boolean lessAt(int iA, int iB) {
-        return less(queue.get(iA), queue.get(iB));
     }
 
     /**
@@ -279,41 +93,31 @@ public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable 
     }
 
     /**
-     * Pull an element at position i up in the max heap until it satisfies the
-     * max heap invariant. The initial position i normally corresponds to a leaf
-     * in the max heap, but it may be a leaf in the min heap in case of a leaf
-     * representing an empty interval.
+     * Push an element at position i down in the min heap until it satisfies the
+     * min heap invariant. The resulting position will be in the min heap.
      */
-    private int pullUpMax(int i) {
+    private int pushDownMin(int i) {
+        int iBound = queue.size();
         E v = queue.get(i);
-        while (1 < i) {
-            int iUp = ((i >> 1) - 1) | 1;
-            E vUp = queue.get(iUp);
-            if (!less(vUp, v)) {
+        while (true) {
+            int iDown = (i << 1) + 2;
+            if (iBound <= iDown) {
                 break;
             }
-            queue.set(i, vUp);
-            i = iUp;
-        }
-        queue.set(i, v);
-        return i;
-    }
-
-    /**
-     * Pull an element at position i up in the min heap until it satisfies the
-     * min heap invariant. The initial position i should always be in the min
-     * heap.
-     */
-    private int pullUpMin(int i) {
-        E v = queue.get(i);
-        while (0 < i) {
-            int iUp = ((i >> 1) - 1) & ~1;
-            E vUp = queue.get(iUp);
-            if (!less(v, vUp)) {
+            E vDown = queue.get(iDown);
+            int iRight = iDown + 2;
+            if (iRight < iBound) {
+                E vRight = queue.get(iRight);
+                if (less(vRight, vDown)) {
+                    vDown = vRight;
+                    iDown = iRight;
+                }
+            }
+            if (!less(vDown, v)) {
                 break;
             }
-            queue.set(i, vUp);
-            i = iUp;
+            queue.set(i, vDown);
+            i = iDown;
         }
         queue.set(i, v);
         return i;
@@ -336,6 +140,14 @@ public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable 
         }
         queue.set(i, v);
         return i;
+    }
+
+    /**
+     * Return true if the value at iA should should be ordered prior to the
+     * value at iB.
+     */
+    private boolean lessAt(int iA, int iB) {
+        return less(queue.get(iA), queue.get(iB));
     }
 
     /**
@@ -400,33 +212,221 @@ public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable 
     }
 
     /**
-     * Push an element at position i down in the min heap until it satisfies the
-     * min heap invariant. The resulting position will be in the min heap.
+     * Return true if vA should should be ordered prior to vB.
      */
-    private int pushDownMin(int i) {
+    private boolean less(E vA, E vB) {
+        return cmp.compare(vA, vB) < 0;
+    }
+
+    public IntervalHeap(Collection<? extends E> c, Comparator<E> comparator) {
+        cmp = comparator;
+        queue = new ArrayList<>(c);
+        heapify();
+    }
+
+    public IntervalHeap(int initialCapacity) {
+        cmp = new NaturalComparator<>();
+        queue = new ArrayList<>(initialCapacity);
+    }
+
+    public IntervalHeap(int initialCapacity, Comparator<E> comparator) {
+        cmp = comparator;
+        queue = new ArrayList<>(initialCapacity);
+    }
+
+    /**
+     * Remove all elements from the heap.
+     */
+    @Override
+    public void clear() {
+        queue.clear();
+    }
+
+    /**
+     * Insert several elements into the heap. If the number of elements to be
+     * added is large, this may call heapify for efficiency instead of adding
+     * the elements one at a time.
+     */
+    @Override
+    public boolean addAll(Collection<? extends E> c) {
+        int cSize = c.size();
+        int nSize = cSize + queue.size();
+        if (nSize <= cSize * log(nSize) / log(2)) {
+            queue.addAll(c);
+            heapify();
+            return true;
+        } else {
+            return super.addAll(c);
+        }
+    }
+
+    /**
+     * Return an iterator for the elements. This iterator does not yield
+     * elements in sorted order.
+     */
+    @Override
+    public Iterator<E> iterator() {
+        return queue.iterator();
+    }
+
+    /**
+     * Return the number of elements in the heap.
+     */
+    @Override
+    public int size() {
+        return queue.size();
+    }
+
+    /**
+     * Return true if the heap is empty.
+     */
+    @Override
+    public boolean isEmpty() {
+        return queue.isEmpty();
+    }
+
+    /**
+     * Insert an element into the heap.
+     */
+    @Override
+    public boolean offer(E e) {
+        queue.add(e);
         int iBound = queue.size();
+        int i = iBound - 1;
+        if ((i & 1) == 0) {
+            pullUpMax(i);
+            pullUpMin(i);
+        } else {
+            pullUpMax(i);
+            if (lessAt(i, i - 1)) {
+                swap(queue, i, i - 1);
+                pullUpMin(i - 1);
+                pullUpMax(i);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Pull an element at position i up in the max heap until it satisfies the
+     * max heap invariant. The initial position i normally corresponds to a leaf
+     * in the max heap, but it may be a leaf in the min heap in case of a leaf
+     * representing an empty interval.
+     */
+    private int pullUpMax(int i) {
         E v = queue.get(i);
-        while (true) {
-            int iDown = (i << 1) + 2;
-            if (iBound <= iDown) {
+        while (1 < i) {
+            int iUp = ((i >> 1) - 1) | 1;
+            E vUp = queue.get(iUp);
+            if (!less(vUp, v)) {
                 break;
             }
-            E vDown = queue.get(iDown);
-            int iRight = iDown + 2;
-            if (iRight < iBound) {
-                E vRight = queue.get(iRight);
-                if (less(vRight, vDown)) {
-                    vDown = vRight;
-                    iDown = iRight;
-                }
-            }
-            if (!less(vDown, v)) {
-                break;
-            }
-            queue.set(i, vDown);
-            i = iDown;
+            queue.set(i, vUp);
+            i = iUp;
         }
         queue.set(i, v);
         return i;
+    }
+
+    /**
+     * Pull an element at position i up in the min heap until it satisfies the
+     * min heap invariant. The initial position i should always be in the min
+     * heap.
+     */
+    private int pullUpMin(int i) {
+        E v = queue.get(i);
+        while (0 < i) {
+            int iUp = ((i >> 1) - 1) & ~1;
+            E vUp = queue.get(iUp);
+            if (!less(v, vUp)) {
+                break;
+            }
+            queue.set(i, vUp);
+            i = iUp;
+        }
+        queue.set(i, v);
+        return i;
+    }
+
+    /**
+     * Return the maximum element.
+     */
+    @Override
+    public E peekLast() {
+        if (queue.size() < 2) {
+            return queue.get(0);
+        }
+        return queue.get(1);
+    }
+
+    /**
+     * Return the minimum element.
+     */
+    @Override
+    public E peekFirst() {
+        return queue.get(0);
+    }
+
+    /**
+     * Return and remove the maximum element.
+     */
+    @Override
+    public E pollLast() {
+        int iBound = queue.size() - 1;
+        if (iBound < 1) {
+            return queue.remove(0);
+        } else {
+            E e = queue.get(1);
+            if (iBound < 2) {
+                queue.remove(1);
+            } else {
+                queue.set(1, queue.remove(iBound));
+                int i = pushDownMax(1);
+                if ((i & 1) == 0) {
+                    assert (i + 1 == iBound);
+                    pullUpMin(i);
+                } else if (lessAt(i, i - 1)) {
+                    // i is a leaf of the max heap
+                    assert ((i << 1) + 1 > iBound);
+                    swap(queue, i, i - 1);
+                    pullUpMin(i - 1);
+                }
+            }
+            return e;
+        }
+    }
+
+    /**
+     * Return and remove the minimum element.
+     */
+    @Override
+    public E pollFirst() {
+        int iBound = queue.size() - 1;
+        if (iBound < 1) {
+            return queue.remove(0);
+        } else {
+            E e = queue.get(0);
+            if (iBound > 0) {
+                queue.set(0, queue.remove(iBound));
+                int i = pushDownMin(0);
+                if (i + 1 == iBound) {
+                    pullUpMax(i);
+                } else if (i + 1 < iBound && lessAt(i + 1, i)) {
+                    // i is a leaf of the min heap
+                    assert ((i << 1) + 2 > iBound);
+                    swap(queue, i + 1, i);
+                    pullUpMax(i + 1);
+                }
+            }
+            return e;
+        }
+    }
+
+    /**
+     * Removing arbitrary elements is not supported.
+     */
+    @Override
+    public boolean removeElem(E e) {
+        throw new UnsupportedOperationException();
     }
 }
