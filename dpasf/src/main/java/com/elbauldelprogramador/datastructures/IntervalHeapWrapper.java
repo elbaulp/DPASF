@@ -263,7 +263,7 @@ public class IntervalHeapWrapper implements Serializable {
         checkSize();
     }
 
-    public boolean checkValueInQueues(double v) {
+    private boolean checkValueInQueues(double v) {
         boolean res = false;
         for (IntervalHeap<Double> value : values) {
             res = res || value.contains(v);

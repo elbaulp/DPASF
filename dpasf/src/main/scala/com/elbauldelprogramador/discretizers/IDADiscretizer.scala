@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory
  * @param nBins number of bins
  * @param s sample size
  *
+  *
+  * @constructor
  */
 case class IDADiscretizer(
   nAttrs: Int,

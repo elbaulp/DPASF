@@ -28,7 +28,7 @@ import static java.util.Collections.swap;
  */
 public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable {
     private final Comparator<E> cmp;
-    List<E> queue;
+    private final List<E> queue;
 
 
     public IntervalHeap() {
