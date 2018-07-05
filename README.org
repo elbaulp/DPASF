@@ -3,5 +3,5 @@
 My MSc on Data Science final project. This is a library for Massive Data Streaming analysis using Apache Flink 
 
 * References
-- [[https://github.com/sramirez/MOAReduction][MOAReduction]] By @
-- Some DataStructures like =IntervalHeap= has been adapted from [[https://github.com/allenbh/gkutil_java/blob/master/src/gkimfl/util/IntervalHeap.java][allenbh/gkutil_java]], by @allenbh
+- [[https://github.com/sramirez/MOAReduction][MOAReduction]] By [[https://github.com/sramirez/][@sramirez]]
+- Some DataStructures like =IntervalHeap= has been adapted from [[https://github.com/allenbh/gkutil_java/blob/master/src/gkimfl/util/IntervalHeap.java][allenbh/gkutil_java]], by [[https://github.com/allenbh/][@allenbh]].
