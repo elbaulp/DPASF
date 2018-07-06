@@ -42,7 +42,10 @@ class IDADiscretizerSpec extends BddSpec with Serializable {
   "A Category" - {
     "When calling its Identity" - {
       "Should be computed correctly" in {
-        val a = IDADiscretizer(nAttrs = 4)
+        val a = IDADiscretizer()
+          .setBins(5)
+          .setNumAttr(4)
+
         val discretized = a.discretize(dataSet)
         val cuts = a.cutPoints(dataSet)
         val discretized2 = a discretizeWith (cuts, dataSet)

@@ -20,25 +20,53 @@ package com.elbauldelprogramador.discretizers
 import com.elbauldelprogramador.datastructures.IntervalHeapWrapper
 import com.elbauldelprogramador.utils.SamplingUtils
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.common.{ LabeledVector, Parameter, WithParameters }
 import org.apache.flink.ml.math.DenseVector
 import org.slf4j.LoggerFactory
 
 /**
  * Incremental Discretization Algorithm
- *
- * @param nBins number of bins
- * @param s     sample size
- * @constructor
  */
-case class IDADiscretizer(
-  nAttrs: Int,
-  nBins: Int = 5,
-  s: Int = 5) extends Serializable {
+class IDADiscretizer extends Serializable with WithParameters {
+
+  import IDADiscretizer._
 
   private[this] val log = LoggerFactory.getLogger(this.getClass)
-  private[this] val V = Vector.tabulate(nAttrs)(i => new IntervalHeapWrapper(nBins, i))
-  private[this] val randomReservoir = SamplingUtils.reservoirSample((1 to s).toList.iterator, 1)
+  private[this] lazy val V = Vector.tabulate(parameters(Attrs))(i => new IntervalHeapWrapper(parameters(Bins), i))
+  //private[this] lazy val randomReservoir = SamplingUtils.reservoirSample((1 to parameters(SampleSize)).toList.iterator, 1)
+
+  /**
+   * Sets the numbers of bin for the discretization.
+   *
+   * @param bins Number of bins
+   * @return itself
+   */
+  def setBins(bins: Int): IDADiscretizer = {
+    parameters add (Bins, bins)
+    this
+  }
+
+  /**
+   * Sets the number of attributes to discretize.
+   *
+   * @param nattr number of attributes.
+   * @return itself.
+   */
+  def setNumAttr(nattr: Int): IDADiscretizer = {
+    parameters add (Attrs, nattr)
+    this
+  }
+
+  /**
+   * Sets the sample size to maintain.
+   *
+   * @param nSize Sample size to use.
+   * @return itself.
+   */
+  def setSampleSize(sSize: Int): IDADiscretizer = {
+    parameters add (SampleSize, sSize)
+    this
+  }
 
   def discretizeWith(cuts: Vector[Vector[Double]], data: DataSet[LabeledVector]): DataSet[LabeledVector] =
     data map { l =>
@@ -123,5 +151,24 @@ case class IDADiscretizer(
         //          }
       }
   }
+}
 
+object IDADiscretizer {
+
+  // ========================================== Parameters =========================================
+  case object Bins extends Parameter[Int] {
+    val defaultValue: Option[Int] = Some(5)
+  }
+
+  case object Attrs extends Parameter[Int] {
+    val defaultValue: Option[Int] = None
+  }
+
+  case object SampleSize extends Parameter[Int] {
+    val defaultValue: Option[Int] = Some(1000)
+  }
+
+  // ========================================== Factory methods ====================================
+
+  def apply(): IDADiscretizer = new IDADiscretizer
 }

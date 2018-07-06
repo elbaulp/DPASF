@@ -18,23 +18,44 @@
 package com.elbauldelprogramador.classifiers.competence.cbe
 
 import jcolibri.method.maintenance.algorithms.{ BBNRNoiseReduction, CRRRedundancyRemoval }
+import org.apache.flink.ml.classification.SVM
+import org.apache.flink.ml.common.Parameter
+import org.apache.flink.ml.pipeline.Predictor
 import org.slf4j.LoggerFactory
 
 /**
  * A case-base maintained by a maintenance method composed of two methods:
  * BBNR and CRR.
- *
- * @constructor BBNRCRR
- *
- * @param k Number of neighbors used in search
- * @param p Size of the environments
- *
  */
-case class BBNRCRR(k: Int, p: Int) {
+class BBNRCRR extends Predictor[BBNRCRR] {
+
+  import BBNRCRR._
 
   private[this] val log = LoggerFactory.getLogger(this.getClass)
   private[this] val bbnr = new BBNRNoiseReduction
   private[this] val crr = new CRRRedundancyRemoval
+
+  /**
+   * Sets the number of neighbors for KNN
+   *
+   * @param  k the number of neighbors to train KNN with.
+   * @return itself
+   */
+  def setNeighbors(k: Int): BBNRCRR = {
+    parameters add (Neighbors, k)
+    this
+  }
+
+  /**
+   * Sets the size of the environment.
+   *
+   * @param p The size of the environment
+   * @return  itself
+   */
+  def setPeriod(p: Int): BBNRCRR = {
+    parameters add (Period, p)
+    this
+  }
 
   def runTwoStepCaseBasedEditMethod = ???
   def initCaseBase = ???
@@ -42,4 +63,24 @@ case class BBNRCRR(k: Int, p: Int) {
   def initData = ???
   def train = ???
   def getInstanceVotes = ???
+}
+
+/**
+ * Companion object of BBNRCRR. Contains convenience functions and the parameter
+ * type definitions of the algorithm
+ */
+object BBNRCRR {
+
+  // ==================== Parameters ================
+  case object Neighbors extends Parameter[Int] {
+    val defaultValue: Option[Int] = Some(3)
+  }
+
+  case object Period extends Parameter[Int] {
+    val defaultValue: Option[Int] = Some(500)
+  }
+
+  // =================== Factory Methods ============
+
+  def apply(): BBNRCRR = new BBNRCRR
 }
