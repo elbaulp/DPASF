@@ -16,7 +16,7 @@ import scala.util.Random
 
 object Main {
 
-  case class Iris(
+  private[this] case class Iris(
     SepalLength: Double,
     SepalWidth: Double,
     PetalLength: Double,
@@ -88,7 +88,7 @@ object Main {
     //    config.setK(3)
 
     val mlr = MultipleLinearRegression()
-    val gain = InfoGainTransformer().setK(2)
+    val gain = InfoGainTransformer()
 
     // Construct the pipeline
     val pipeline = gain
@@ -99,7 +99,5 @@ object Main {
     pipeline.fit(dataSet)
     val r: DataSet[LabeledVector] = pipeline.transform(dataSet)
     r print
-    //val r = pipeline.predict(dataSet map (_.vector))
-    //r.print()
   }
 }

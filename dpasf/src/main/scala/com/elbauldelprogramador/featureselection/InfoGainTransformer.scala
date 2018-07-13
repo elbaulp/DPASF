@@ -17,70 +17,42 @@
 
 package com.elbauldelprogramador.featureselection
 
-import java.lang.Math
-import java.{ lang, util }
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{ DataSet, _ }
-import org.apache.flink.ml._
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
 import org.apache.flink.ml.math.{ BreezeVectorConverter, DenseVector, Vector }
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
+import org.apache.flink.api.java.aggregation.Aggregations.SUM
+import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConversions._
-import collection.JavaConverters._
-import scala.collection.convert.Decorators
-import scala.collection.immutable.HashMap
-import scala.collection.mutable
+import scala.collection.immutable
 import scala.reflect.ClassTag
-import scala.math
 
 class InfoGainTransformer extends Transformer[InfoGainTransformer] {
 
   import InfoGainTransformer._
 
-  private[featureselection] var counts: Option[DataSet[mutable.Map[Key, Double]]] = None
+  private[featureselection] var selectedFeatures: Option[immutable.Vector[Int]] = None
 
   /**
-   * Sets the number of neighbors for KNN
+   * Sets the number of features to select
    *
-   * @param  k the number of neighbors to train KNN with.
+   * @param n Number of features
    * @return [[InfoGainTransformer]]
    */
-  def setK(k: Int): InfoGainTransformer = {
-    parameters add (K, k)
-    this
-  }
-
-  /**
-   * Sets if attributes should be binarized instead of discretized
-   *
-   * @param b Whether it should be binarized or not
-   * @return [[InfoGainTransformer]]
-   */
-  def setBinarize(b: Boolean): InfoGainTransformer = {
-    parameters add (Binarize, b)
-    this
-  }
-
-  /**
-    * Sets the number of features to select
-    *
-    * @param n Number of features
-    * @return [[InfoGainTransformer]]
-    */
   def setSelectNF(n: Int): InfoGainTransformer = {
     parameters add (SelectNF, n)
     this
   }
 
   /**
-    * Sets the total number of features for this
-    * [[DataSet]]
-    *
-    * @param n Number of features
-    * @return [[InfoGainTransformer]]
-    */
+   * Sets the total number of features for this
+   * [[DataSet]]
+   *
+   * @param n Number of features
+   * @return [[InfoGainTransformer]]
+   */
   def setNFeatures(n: Int): InfoGainTransformer = {
     parameters add (NFeatures, n)
     this
@@ -93,15 +65,9 @@ class InfoGainTransformer extends Transformer[InfoGainTransformer] {
  */
 object InfoGainTransformer {
 
+  private[this] val log = LoggerFactory.getLogger(this.getClass)
+
   // ====================================== Parameters =============================================
-  case object K extends Parameter[Int] {
-    val defaultValue: Option[Int] = Some(3)
-  }
-
-  case object Binarize extends Parameter[Boolean] {
-    val defaultValue: Option[Boolean] = Some(false)
-  }
-
   case object SelectNF extends Parameter[Int] {
     val defaultValue: Option[Int] = Some(10)
   }
@@ -115,60 +81,73 @@ object InfoGainTransformer {
 
   // ========================================== Operations =========================================
 
-
-/**
-    * Calculate entropy for the given frequencies.
-    *
-    * @param freqs Frequencies of each different class
-    * @param n     Number of elements
-    *
-    */
+  /**
+   * Calculate entropy for the given frequencies.
+   *
+   * @param freqs Frequencies of each different class
+   * @param n     Number of elements
+   *
+   */
   private[featureselection] def entropy(freqs: Seq[Long], n: Long) = {
-    freqs.aggregate(0.0)({ case (h, q) =>
-      h + (if (q == 0) 0 else (q.toDouble / n) * (math.log(q.toDouble / n) / math.log(2)))
+    freqs.aggregate(0.0)({
+      case (h, q) =>
+        h + (if (q == 0) 0 else (q.toDouble / n) * (math.log(q.toDouble / n) / math.log(2)))
     }, { case (h1, h2) => h1 + h2 }) * -1
   }
 
   /**
-    * Calculate entropy for the given frequencies.
-    *
-    * @param freqs Frequencies of each different class
-    */
+   * Calculate entropy for the given frequencies.
+   *
+   * @param freqs Frequencies of each different class
+   */
   private[featureselection] def entropy(freqs: Seq[Long]): Double =
-    entropy(freqs, freqs.reduce(_ + _))
-
-
+    entropy(freqs, freqs.sum)
 
   implicit def fitLabeledVectorInfoGain = new FitOperation[InfoGainTransformer, LabeledVector] {
     override def fit(instance: InfoGainTransformer, fitParameters: ParameterMap, input: DataSet[LabeledVector]): Unit = {
-//      val initMap = mutable.Map.empty[Key, Double]
-//      val r = input.map {
-//        v =>
-//          v.vector.foldLeft(initMap) {
-//            case (m, (i, value)) =>
-//              val key = Key(value, v.label)
-//              val cval = m.getOrElseUpdate(key, .0) + 1.0
-//              m += (key -> cval)
-//          }
-//      }
-//      instance.counts = Some(r)
+      //      val initMap = mutable.Map.empty[Key, Double]
+      //      val r = input.map {
+      //        v =>
+      //          v.vector.foldLeft(initMap) {
+      //            case (m, (i, value)) =>
+      //              val key = Key(value, v.label)
+      //              val cval = m.getOrElseUpdate(key, .0) + 1.0
+      //              m += (key -> cval)
+      //          }
+      //      }
+      //      instance.counts = Some(r)
       val resultingParameters = instance.parameters ++ fitParameters
-      val Kvalue = resultingParameters(K)
-      val binarize = resultingParameters(Binarize)
       val selectNF = resultingParameters(SelectNF)
       val nf = resultingParameters(NFeatures)
+      val counts = input groupBy (_.label) reduceGroup (_.length.toLong)
+      val H = entropy(counts.collect)
+      log.error(s"Entrpy: $H")
 
-      val selected = trainOn(input, selectNF, nf)
-      // require(isSorted(selected))
-      instance.counts = Some(selected)
+      instance.selectedFeatures = Some(immutable.Vector(1))
     }
   }
 
-  private[featureselection] def trainOn(data: DataSet[LabeledVector],
+  private[this] def frequencies(input: DataSet[LabeledVector]): immutable.Vector[Double] = {
+
+    ???
+  }
+
+  /**
+   * Computes the Information Gain for each attribute  in the [[DataSet]]
+   *
+   * @param input    Input data
+   * @param selectNF Number of features to select, the `selectNF` will be selected in base of its InfoGain
+   * @param nf       Total number of features for the [[DataSet]]
+   * @return A [[Vector]] with the same length as the number of attributes for this [[DataSet]].
+   *         Each value corresponds with the InfoGain for the attribute,
+   *         for example the ith value of the [[Vector]] is the InfoGain for attribute  i.
+   */
+  private[this] def computeInfoGain(
+    input: DataSet[LabeledVector],
     selectNF: Int,
-    nf: Int
-  ) = {
-    require(selectNF < nf)
+    nf: Int): immutable.Vector[Double] = {
+    //require(selectNF < nf, "Features to select must be less than total features")
+    ???
   }
 
   implicit def fitVectorInfoGain[T <: Vector] = new FitOperation[InfoGainTransformer, T] {
@@ -184,45 +163,40 @@ object InfoGainTransformer {
         input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
 
         val resultingParameters = instance.parameters ++ transformParameters
-        val Kvalue = resultingParameters(K)
-        val binarize = resultingParameters(Binarize)
 
-        instance.counts match {
-          case Some(counts) =>
-            println(s"INSIDE transform!!!")
-            val lastcounts = counts.collect().last
-            println(s"This is last: $lastcounts")
-            input.mapWithBcVariable(counts) {
-              (x, _) =>
-                val javaMap = lastcounts.mapValues(Double.box)
-                val infoGain = IncrementalInfoGain.applySelection(javaMap)
-                println(infoGain)
-                x
+        instance.selectedFeatures match {
+          case Some(features) =>
+            input.map { x =>
+              val attrs = x.vector.map(_._2).toVector
+              val newf = features.map(attrs(_))
+              LabeledVector(x.label, DenseVector(newf.toArray))
             }
           case None =>
             throw new RuntimeException("The InfoGain has not been fitted to the data.")
         }
+
+        //        instance.counts match {
+        //          case Some(counts) =>
+        //            println(s"INSIDE transform!!!")
+        //            val lastcounts = counts.collect().last
+        //            println(s"This is last: $lastcounts")
+        //            input.mapWithBcVariable(counts) {
+        //              (x, _) =>
+        //                val javaMap = lastcounts.mapValues(Double.box)
+        //                val infoGain = IncrementalInfoGain.applySelection(javaMap)
+        //                println(infoGain)
+        //                x
+        //            }
+        //          case None =>
+        //            throw new RuntimeException("The InfoGain has not been fitted to the data.")
+        //        }
       }
     }
   }
-
 
   implicit def transformVectorsInfoGain[T <: Vector: BreezeVectorConverter: TypeInformation: ClassTag] = {
     new TransformDataSetOperation[InfoGainTransformer, T, T] {
       override def transformDataSet(instance: InfoGainTransformer, transformParameters: ParameterMap, input: DataSet[T]): DataSet[T] = input
     }
   }
-
-  case class Key(x: Double, y: Double) {
-    //    override def equals(o: scala.Any): Boolean = {
-    //      if (this == o) true
-    //      if (!o.isInstanceOf[Key]) false
-    //      val key = o.asInstanceOf[Key]
-    //      (x == key.x) && (y == key.y)
-    //    }
-
-    override def hashCode(): Int =
-      31 * java.lang.Float.floatToIntBits(x.toFloat) + java.lang.Float.floatToIntBits(y.toFloat)
-  }
-
 }

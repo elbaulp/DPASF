@@ -1,3 +1,5 @@
+package com.elbauldelprogramador
+
 import org.scalatest.PropSpec
 import org.scalatest.prop.Checkers
 
