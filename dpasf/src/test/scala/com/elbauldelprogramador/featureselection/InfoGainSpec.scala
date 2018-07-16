@@ -20,9 +20,10 @@ package com.elbauldelprogramador.featureselection
 import java.util.concurrent.TimeUnit
 
 import com.elbauldelprogramador.BddSpec
+import com.elbauldelprogramador.pojo.Iris
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 
@@ -55,16 +56,27 @@ class InfoGainSpec extends BddSpec with Serializable {
     Vector("1", "1", "20"),
     Vector("1", "0", "10"))
 
-  val dataSet = env.fromCollection(data map { tuple =>
+  private val dataSet = env.fromCollection(data map { tuple =>
     val list = tuple.iterator.toList
     val numList = list map (_.toDouble)
     LabeledVector(numList(2), DenseVector(numList.take(2).toArray))
   })
 
-  val gain = InfoGainTransformer()
+  private val iris = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath) map { tuple =>
+    val list = tuple.productIterator.toList
+    val numList = list map (_.asInstanceOf[Double])
+    LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
+  }
+
+  private val gain = InfoGainTransformer()
     .setNFeatures(2)
     .setSelectNF(1)
-  gain.fit(dataSet)
+  gain fit dataSet
+
+  private val irisGain = InfoGainTransformer()
+    .setSelectNF(2)
+    .setNFeatures(4)
+  irisGain fit iris
 
   "A Information Gain FS on DataSet1" - {
     "When computing its Entropy" - {
@@ -73,7 +85,7 @@ class InfoGainSpec extends BddSpec with Serializable {
       }
 
       "Should return a IG(Attr1) equal to 0.02126595565168199 bits" in {
-        assert(gain.gains.get(0) === 0.02126595565168199)
+        assert(gain.gains.get.head === 0.02126595565168199)
       }
 
       "Should return a IG(Attr2) equal to 0.863120568566631 bits" in {
@@ -86,12 +98,19 @@ class InfoGainSpec extends BddSpec with Serializable {
           .toVector
           .flatMap(_.vector.toVector.map(_._2))
 
-        assert( data.map(_(1).toDouble) == vector)
+        assert(data.map(_(1).toDouble) == vector)
+      }
+    }
+  }
+
+  "A Information Gain FS on Iris" - {
+    "When computing its Entropy" - {
+      "Should be H(Iris) equal to 1.584962500721156" in {
+        assert(irisGain.H.get === 1.584962500721156)
       }
     }
   }
 }
-
 
 // Thanks to http://blog.ssanj.net/posts/2016-07-06-how-to-run-scalacheck-from-scalatest-and-generate-html-reports.html
 // for help me use scalacheck from scalatest

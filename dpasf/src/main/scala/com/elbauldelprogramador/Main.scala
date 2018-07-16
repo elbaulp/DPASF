@@ -87,17 +87,17 @@ object Main {
     //    config.setClassificationMethod(new MajorityVotingMethod())
     //    config.setK(3)
 
-    val mlr = MultipleLinearRegression()
-    val gain = InfoGainTransformer()
-
-    // Construct the pipeline
-    val pipeline = gain
-    //.chainPredictor(mlr)
+    //    val mlr = MultipleLinearRegression()
+    //    val gain = InfoGainTransformer()
+    //
+    //    // Construct the pipeline
     //    val pipeline = gain
-
-    // Train the pipeline (scaler and multiple linear regression)
-    pipeline.fit(dataSet)
-    val r: DataSet[LabeledVector] = pipeline.transform(dataSet)
-    r print
+    //    //.chainPredictor(mlr)
+    //    //    val pipeline = gain
+    //
+    //    // Train the pipeline (scaler and multiple linear regression)
+    //    pipeline.fit(dataSet)
+    //    val r: DataSet[LabeledVector] = pipeline.transform(dataSet)
+    //    r print
   }
 }
