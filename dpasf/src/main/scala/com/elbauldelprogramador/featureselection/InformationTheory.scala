@@ -12,7 +12,7 @@ private[featureselection] object InformationTheory {
    * @param n     Number of elements
    *
    */
-  def entropy(freqs: Seq[Double], n: Double) = {
+  private[this] def entropy(freqs: Seq[Double], n: Double) = {
     freqs.aggregate(0.0)({
       case (h, q) =>
         h + (if (q == 0) 0 else (q.toDouble / n) * (math.log(q.toDouble / n) / math.log(2)))

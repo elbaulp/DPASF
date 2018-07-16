@@ -29,11 +29,27 @@ import org.slf4j.LoggerFactory
 import scala.collection.immutable
 import scala.reflect.ClassTag
 
+/** Select the most important features based on its Information Gain.
+  *
+  * @example
+  * {{{
+  *               val gain = InfoGainTransformer()
+  *                             .setNFeatures(2)
+  *                             .setSelectNF(1)
+  *               gain.fit(dataSet)
+  *
+  *               val transformedDS = gain.transform(dataSet)
+  * }}}
+  *
+  * =Parameters=
+  *
+  * - [[com.elbauldelprogramador.featureselection.InfoGainTransformer.SelectNF]]: The number of features to select
+  * - [[com.elbauldelprogramador.featureselection.InfoGainTransformer.NFeatures]]: Total number of features on the DS
+  */
 class InfoGainTransformer extends Transformer[InfoGainTransformer] {
 
   import InfoGainTransformer._
 
-  private[featureselection] var selectedFeatures: Option[immutable.Vector[Int]] = None
   private[featureselection] var H: Option[Double] = None
   private[featureselection] var gains: Option[Seq[Double]] = None
 
@@ -83,7 +99,12 @@ object InfoGainTransformer {
 
   // ========================================== Operations =========================================
 
-  implicit def fitLabeledVectorInfoGain = new FitOperation[InfoGainTransformer, LabeledVector] {
+  /** Trains the [[InfoGainTransformer]] by computing the total entropy of the Data, which is of type
+    * [[LabeledVector]] and then calculating the Information Gain for each attribute.
+    *
+    * The InfoGain is then used in the transformation to select the attributes with most InfoGain.
+    */
+  implicit val fitLabeledVectorInfoGain = new FitOperation[InfoGainTransformer, LabeledVector] {
     override def fit(instance: InfoGainTransformer, fitParameters: ParameterMap, input: DataSet[LabeledVector]): Unit = {
 
       val resultingParameters = instance.parameters ++ fitParameters
@@ -95,6 +116,89 @@ object InfoGainTransformer {
       instance.H = Some(h)
       instance.gains = Some(gains)
     }
+  }
+
+  implicit def fitVectorInfoGain[T <: Vector] = new FitOperation[InfoGainTransformer, T] {
+    override def fit(instance: InfoGainTransformer, fitParameters: ParameterMap, input: DataSet[T]): Unit =
+      input
+  }
+
+  /** [[TransformDataSetOperation]] which select the top N attributes specified by parameters from the DataSet,
+    * which is of type [[LabeledVector]].
+    *
+    * @return [[TransformDataSetOperation]] The DataSet with the best attributes selected
+    */
+  implicit val transformDataSetLabeledVectorsInfoGain = {
+    new TransformDataSetOperation[InfoGainTransformer, LabeledVector, LabeledVector] {
+      override def transformDataSet(
+                                     instance: InfoGainTransformer,
+                                     transformParameters: ParameterMap,
+                                     input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
+
+        val resultingParameters = instance.parameters ++ transformParameters
+        val selectNF = resultingParameters(SelectNF)
+        val nf = resultingParameters(NFeatures)
+
+        require(selectNF < nf, "Features to select must be less than total features")
+
+        instance.gains match {
+          case Some(gains) =>
+            val topf = gains.sortWith(_ > _).take(selectNF)
+            val indexes = topf.map(gains.indexOf(_))
+            log.info(s"Selecting features $indexes")
+            input.map { x =>
+              val attrs = x.vector
+              val output = indexes.map(attrs(_))
+              LabeledVector(x.label, DenseVector(output.toArray))
+            }
+
+          case None =>
+            throw new RuntimeException("The InfoGain has not been fitted to the data. " +
+              "This is necessary to compute the Information Gain for each attribute.")
+        }
+      }
+    }
+  }
+
+  implicit def transformVectorsInfoGain[T <: Vector : BreezeVectorConverter : TypeInformation : ClassTag] = {
+    new TransformDataSetOperation[InfoGainTransformer, T, T] {
+      override def transformDataSet(instance: InfoGainTransformer, transformParameters: ParameterMap, input: DataSet[T]): DataSet[T] = input
+    }
+  }
+
+  /**
+    * Computes the Information Gain for each attribute  in the [[DataSet]]
+    *
+    * @param input    Input data
+    * @param selectNF Number of features to select, the `selectNF` will be selected in base of its InfoGain
+    * @param nf       Total number of features for the [[DataSet]]
+    * @return A tuple where the first element is the total entropy for the [[DataSet]] and a [[Vector]] with
+    *         the same length as the number of attributes for this [[DataSet]].
+    *         Each value corresponds with the InfoGain for the attribute,
+    *         for example the ith value of the [[Vector]] is the InfoGain for attribute  i.
+    */
+  private[this] def computeInfoGain(
+                                     input: DataSet[LabeledVector],
+                                     selectNF: Int,
+                                     nf: Int): (Double, immutable.Vector[Double]) = {
+    require(selectNF < nf, "Features to select must be less than total features")
+
+    // Compute entropy for entire dataset
+    val inputFreqs1 = frequencies(input, (x: LabeledVector) => x.label)
+    val inputFreqs = inputFreqs1.flatten
+    val inputH = entropy(inputFreqs)
+
+
+    // Compute InfoGain for each attribute
+    val gains = (0 until nf).map { i =>
+      val freqs = frequencies(input, (x: LabeledVector) => x.vector(i))
+      val classH = freqs map entropy
+      val hCLassTemp = inputFreqs.zip(classH.reverse).map(x => x._1 / inputFreqs.sum * x._2).sum
+
+      inputH - hCLassTemp
+    }.toVector
+
+    inputH -> gains
   }
 
   /**
@@ -149,90 +253,5 @@ object InfoGainTransformer {
       .values
       .map(x => x.map(_._1.toDouble))
       .toSeq
-  }
-
-  /**
-    * Computes the Information Gain for each attribute  in the [[DataSet]]
-    *
-    * @param input    Input data
-    * @param selectNF Number of features to select, the `selectNF` will be selected in base of its InfoGain
-    * @param nf       Total number of features for the [[DataSet]]
-    * @return A tuple where the first element is the total entropy for the [[DataSet]] and a [[Vector]] with
-    *         the same length as the number of attributes for this [[DataSet]].
-    *         Each value corresponds with the InfoGain for the attribute,
-    *         for example the ith value of the [[Vector]] is the InfoGain for attribute  i.
-    */
-  private[this] def computeInfoGain(
-                                     input: DataSet[LabeledVector],
-                                     selectNF: Int,
-                                     nf: Int): (Double, immutable.Vector[Double]) = {
-    //require(selectNF < nf, "Features to select must be less than total features")
-
-    // Compute entropy for entire dataset
-    val inputFreqs1 = frequencies(input, (x: LabeledVector) => x.label)
-    val inputFreqs = inputFreqs1.flatten
-    val inputH = entropy(inputFreqs)
-
-
-    // Compute InfoGain for each attribute
-    val gains = (0 until nf).map { i =>
-      val freqs = frequencies(input, (x: LabeledVector) => x.vector(i))
-      val classH = freqs map entropy
-      val hCLassTemp = inputFreqs.zip(classH.reverse).map(x => x._1 / inputFreqs.sum * x._2).sum
-
-      inputH - hCLassTemp
-    }.toVector
-
-    inputH -> gains
-  }
-
-  implicit def fitVectorInfoGain[T <: Vector] = new FitOperation[InfoGainTransformer, T] {
-    override def fit(instance: InfoGainTransformer, fitParameters: ParameterMap, input: DataSet[T]): Unit =
-      input
-  }
-
-  implicit def transformDataSetLabeledVectorsInfoGain = {
-    new TransformDataSetOperation[InfoGainTransformer, LabeledVector, LabeledVector] {
-      override def transformDataSet(
-                                     instance: InfoGainTransformer,
-                                     transformParameters: ParameterMap,
-                                     input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
-
-        val resultingParameters = instance.parameters ++ transformParameters
-
-        instance.selectedFeatures match {
-          case Some(features) =>
-            input.map { x =>
-              val attrs = x.vector.map(_._2).toVector
-              val newf = features.map(attrs(_))
-              LabeledVector(x.label, DenseVector(newf.toArray))
-            }
-          case None =>
-            throw new RuntimeException("The InfoGain has not been fitted to the data.")
-        }
-
-        //        instance.counts match {
-        //          case Some(counts) =>
-        //            println(s"INSIDE transform!!!")
-        //            val lastcounts = counts.collect().last
-        //            println(s"This is last: $lastcounts")
-        //            input.mapWithBcVariable(counts) {
-        //              (x, _) =>
-        //                val javaMap = lastcounts.mapValues(Double.box)
-        //                val infoGain = IncrementalInfoGain.applySelection(javaMap)
-        //                println(infoGain)
-        //                x
-        //            }
-        //          case None =>
-        //            throw new RuntimeException("The InfoGain has not been fitted to the data.")
-        //        }
-      }
-    }
-  }
-
-  implicit def transformVectorsInfoGain[T <: Vector : BreezeVectorConverter : TypeInformation : ClassTag] = {
-    new TransformDataSetOperation[InfoGainTransformer, T, T] {
-      override def transformDataSet(instance: InfoGainTransformer, transformParameters: ParameterMap, input: DataSet[T]): DataSet[T] = input
-    }
   }
 }

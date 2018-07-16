@@ -80,6 +80,14 @@ class InfoGainSpec extends BddSpec with Serializable {
         assert(gain.gains.get(1) === 0.863120568566631)
       }
 
+      "Should return Attr2 as the most important feature" in {
+        val result = gain.transform(dataSet)
+        val vector = result.collect
+          .toVector
+          .flatMap(_.vector.toVector.map(_._2))
+
+        assert( data.map(_(1).toDouble) == vector)
+      }
     }
   }
 }
