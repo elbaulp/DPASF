@@ -123,11 +123,6 @@ object InfoGainTransformer {
     }
   }
 
-  implicit def fitVectorInfoGain[T <: Vector] = new FitOperation[InfoGainTransformer, T] {
-    override def fit(instance: InfoGainTransformer, fitParameters: ParameterMap, input: DataSet[T]): Unit =
-      input
-  }
-
   /**
    * [[TransformDataSetOperation]] which select the top N attributes specified by parameters from the DataSet,
    * which is of type [[LabeledVector]].
@@ -163,12 +158,6 @@ object InfoGainTransformer {
               "This is necessary to compute the Information Gain for each attribute.")
         }
       }
-    }
-  }
-
-  implicit def transformVectorsInfoGain[T <: Vector: BreezeVectorConverter: TypeInformation: ClassTag] = {
-    new TransformDataSetOperation[InfoGainTransformer, T, T] {
-      override def transformDataSet(instance: InfoGainTransformer, transformParameters: ParameterMap, input: DataSet[T]): DataSet[T] = input
     }
   }
 
