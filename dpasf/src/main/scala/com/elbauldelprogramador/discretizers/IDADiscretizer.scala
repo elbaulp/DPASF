@@ -18,11 +18,9 @@
 package com.elbauldelprogramador.discretizers
 
 import com.elbauldelprogramador.datastructures.IntervalHeapWrapper
-import com.elbauldelprogramador.utils.SamplingUtils
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, WithParameters }
 import org.apache.flink.ml.math.DenseVector
-import org.slf4j.LoggerFactory
 
 /**
  * Incremental Discretization Algorithm

@@ -18,16 +18,14 @@
 package com.elbauldelprogramador.featureselection
 
 import com.elbauldelprogramador.featureselection.InformationTheory.entropy
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{ DataSet, _ }
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
-import org.apache.flink.ml.math.{ BreezeVectorConverter, DenseVector, Vector }
+import org.apache.flink.ml.math.{ DenseVector, Vector }
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
 import scala.collection.immutable
-import scala.reflect.ClassTag
 
 /**
  * Select the most important features based on its Information Gain.
