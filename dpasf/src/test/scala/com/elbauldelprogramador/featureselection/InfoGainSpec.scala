@@ -20,6 +20,7 @@ package com.elbauldelprogramador.featureselection
 import java.util.concurrent.TimeUnit
 
 import com.elbauldelprogramador.BddSpec
+import com.elbauldelprogramador.discretizers.IDADiscretizer
 import com.elbauldelprogramador.pojo.Iris
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
@@ -36,6 +37,28 @@ class InfoGainSpec extends BddSpec with Serializable {
     3, // number of restart attempts
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
+
+  private val tennis = Vector(
+    Vector(1, 0),
+    Vector(1, 0),
+    Vector(2, 1),
+    Vector(3, 1),
+    Vector(3, 1),
+    Vector(3, 0),
+    Vector(2, 1),
+    Vector(1, 0),
+    Vector(1, 1),
+    Vector(3, 1),
+    Vector(1, 1),
+    Vector(2, 1),
+    Vector(2, 1),
+    Vector(3, 0))
+
+  private val tennisDS = env.fromCollection(tennis map { tuple =>
+    val list = tuple.iterator.toList
+    val numList = list map (_.toDouble)
+    LabeledVector(numList(1), DenseVector(numList.take(1).toArray))
+  })
 
   //  private val data = Vector(
   //    Vector("high", "low", "play"),
@@ -62,7 +85,24 @@ class InfoGainSpec extends BddSpec with Serializable {
     LabeledVector(numList(2), DenseVector(numList.take(2).toArray))
   })
 
-  private val iris = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath) map { tuple =>
+  // Taken from [[https://www.autonlab.org/tutorials/infogain.html]]
+  private val gladiator = Vector(
+    Vector(1, 1),
+    Vector(2, 0),
+    Vector(3, 1),
+    Vector(1, 0),
+    Vector(1, 0),
+    Vector(3, 1),
+    Vector(2, 0),
+    Vector(1, 1))
+
+  private val gladiatorDS = env.fromCollection(gladiator map { tuple =>
+    val list = tuple.iterator.toList
+    val numList = list map (_.toDouble)
+    LabeledVector(numList(1), DenseVector(numList.take(1).toArray))
+  })
+
+  private val irisDS = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath) map { tuple =>
     val list = tuple.productIterator.toList
     val numList = list map (_.asInstanceOf[Double])
     LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
@@ -73,10 +113,44 @@ class InfoGainSpec extends BddSpec with Serializable {
     .setSelectNF(1)
   gain fit dataSet
 
+  private val tennisGain = InfoGainTransformer()
+    .setNFeatures(1)
+    .setSelectNF(1)
+  tennisGain fit tennisDS
+
+  private val gladiatorGain = InfoGainTransformer()
+    .setNFeatures(1)
+    .setSelectNF(1)
+  gladiatorGain fit gladiatorDS
+
   private val irisGain = InfoGainTransformer()
     .setSelectNF(2)
     .setNFeatures(4)
-  irisGain fit iris
+  irisGain fit irisDS
+
+  "A Information Gain FS on TennnisDS" - {
+    "When computing its Entropy" - {
+      "Should return entropy H(X) equal to 0.9402859586706309" in {
+        assert(tennisGain.H.get === 0.9402859586706309)
+      }
+
+      "Should return a IG(Attr1) equal to 0.2467498197744391 bits" in {
+        assert(tennisGain.gains.get.head === 0.2467498197744391)
+      }
+    }
+  }
+
+  "A Information Gain FS on GladiatorDS" - {
+    "When computing its Entropy" - {
+      "Should return entropy H(X) equal to 1.0" in {
+        assert(gladiatorGain.H.get === 1.0)
+      }
+
+      "Should return a IG(X) equal to 0.5 bits" in {
+        assert(gladiatorGain.gains.get.head === 0.5)
+      }
+    }
+  }
 
   "A Information Gain FS on DataSet1" - {
     "When computing its Entropy" - {
@@ -84,8 +158,8 @@ class InfoGainSpec extends BddSpec with Serializable {
         assert(gain.H.get === 0.863120568566631)
       }
 
-      "Should return a IG(Attr1) equal to 0.02126595565168199 bits" in {
-        assert(gain.gains.get.head === 0.02126595565168199)
+      "Should return a IG(Attr1) equal to 0.0059777114237739015 bits" in {
+        assert(gain.gains.get.head === 0.0059777114237739015)
       }
 
       "Should return a IG(Attr2) equal to 0.863120568566631 bits" in {

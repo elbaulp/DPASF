@@ -53,6 +53,7 @@ class InfoGainTransformer extends Transformer[InfoGainTransformer] {
 
   private[featureselection] var H: Option[Double] = None
   private[featureselection] var gains: Option[Seq[Double]] = None
+  private[featureselection] var nInstances: Option[Long] = None
 
   /**
    * Sets the number of features to select
@@ -113,7 +114,9 @@ object InfoGainTransformer {
       val selectNF = resultingParameters(SelectNF)
       val nf = resultingParameters(NFeatures)
 
-      val (h, gains) = computeInfoGain(input, selectNF, nf)
+      instance.nInstances = Some(input.count)
+
+      val (h, gains) = computeInfoGain(input, instance.nInstances.get, selectNF, nf)
 
       instance.H = Some(h)
       instance.gains = Some(gains)
@@ -142,7 +145,7 @@ object InfoGainTransformer {
         val selectNF = resultingParameters(SelectNF)
         val nf = resultingParameters(NFeatures)
 
-        require(selectNF < nf, "Features to select must be less than total features")
+        require(selectNF <= nf, "Features to select must be less than total features")
 
         instance.gains match {
           case Some(gains) =>
@@ -172,9 +175,10 @@ object InfoGainTransformer {
   /**
    * Computes the Information Gain for each attribute  in the [[DataSet]]
    *
-   * @param input    Input data
-   * @param selectNF Number of features to select, the `selectNF` will be selected in base of its InfoGain
-   * @param nf       Total number of features for the [[DataSet]]
+   * @param input      Input data
+   * @param nInstances Total number of instances of the [[DataSet]]
+   * @param selectNF   Number of features to select, the `selectNF` will be selected in base of its InfoGain
+   * @param nf         Total number of features for the [[DataSet]]
    * @return A tuple where the first element is the total entropy for the [[DataSet]] and a [[Vector]] with
    *         the same length as the number of attributes for this [[DataSet]].
    *         Each value corresponds with the InfoGain for the attribute,
@@ -182,22 +186,24 @@ object InfoGainTransformer {
    */
   private[this] def computeInfoGain(
     input: DataSet[LabeledVector],
+    nInstances: Long,
     selectNF: Int,
     nf: Int): (Double, immutable.Vector[Double]) = {
-    require(selectNF < nf, "Features to select must be less than total features")
+    require(selectNF <= nf, "Features to select must be less than total features")
 
     // Compute entropy for entire dataset
-    val inputFreqs1 = frequencies(input, (x: LabeledVector) => x.label)
-    val inputFreqs = inputFreqs1.flatten
-    val inputH = entropy(inputFreqs)
-
+    val inputFreqs = frequencies(input, (x: LabeledVector) => x.label)
+      .map(x => x._1 -> x._2.head).sortBy(_._1)
+    val inputH = entropy(inputFreqs map (_._2))
     // Compute InfoGain for each attribute
     val gains = (0 until nf).map { i =>
-      val freqs = frequencies(input, (x: LabeledVector) => x.vector(i))
-      val classH = freqs map entropy
-      val hCLassTemp = inputFreqs.zip(classH.reverse).map(x => x._1 / inputFreqs.sum * x._2).sum
-
-      inputH - hCLassTemp
+      val freqs = frequencies(input, (x: LabeledVector) => x.vector(i)).sortBy(_._1)
+      val px = freqs.map(x => x._1 -> x._2.sum / nInstances).sortBy(_._1)
+      val attrH = freqs.map(x => x._1 -> entropy(x._2)).sortBy(_._1)
+      // Compute H(Class | Attr)
+      val HYAttr = px.map(_._2).zip(attrH.map(_._2))
+        .foldLeft(0.0)((h, x) => h + (x._1 * x._2))
+      inputH - HYAttr
     }.toVector
 
     inputH -> gains
@@ -221,9 +227,10 @@ object InfoGainTransformer {
    *
    *
    * temperature | wind | class                 temperature |wind |class
-   * high        | low  | play                      low     | low |play
-   * high        | low  | play                      low     | high|cancelled
-   * high        | high | cancelled                 low     | low |play
+   * --------------------------                 ------------------------
+   * high        | low  | play                  low         | low |play
+   * high        | low  | play                  low         | high|cancelled
+   * high        | high | cancelled             low         | low |play
    * high        | low  | play
    * }}}
    *
@@ -234,26 +241,23 @@ object InfoGainTransformer {
    * @return A matrix with the frequencies. Seq(0) its the class frequencies for one split
    *         and so on.
    */
-  private[this] def frequencies(input: DataSet[LabeledVector], f: LabeledVector => Double): Seq[Seq[Double]] = {
+  private[this] def frequencies(
+    input: DataSet[LabeledVector],
+    f: LabeledVector => Double): Seq[(Double, Seq[Double])] = {
     import org.apache.flink.api.scala._
     // Group each attribute by its value to compute H(Class | Attr)
     val attrFreqs = input.
       groupBy(f).
       reduceGroup {
         // Count label frequencies for each value of Attr
-        (in, out: Collector[(Int, Int)]) =>
+        (in, out: Collector[(Double, Seq[Double])]) =>
           val features = in.toVector
           val groupClass = features groupBy (_.label)
-          val x = groupClass mapValues (_.size)
+          val x = groupClass.mapValues(_.size.toDouble).toSeq.map(features(0).vector(0) -> _._2)
+            .groupBy(_._1)
           for (k <- x.keys)
-            out.collect(x(k) -> x.values.sum)
+            out.collect(k -> x(k).map(_._2))
       }
-
-    // Extract _._2 from attrFreqs (The frequency for that value)
-    attrFreqs.collect()
-      .groupBy(_._2)
-      .values
-      .map(x => x.map(_._1.toDouble))
-      .toSeq
+    attrFreqs.collect
   }
 }

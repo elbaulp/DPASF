@@ -31,7 +31,7 @@ class IDADiscretizer extends Serializable with WithParameters {
 
   import IDADiscretizer._
 
-  private[this] val log = LoggerFactory.getLogger(this.getClass)
+  //  private[this] val log = LoggerFactory.getLogger(this.getClass)
   private[this] lazy val V = Vector.tabulate(parameters(Attrs))(i => new IntervalHeapWrapper(parameters(Bins), i))
   //private[this] lazy val randomReservoir = SamplingUtils.reservoirSample((1 to parameters(SampleSize)).toList.iterator, 1)
 
@@ -106,7 +106,7 @@ class IDADiscretizer extends Serializable with WithParameters {
    * @return A Vector[IntervalHeapWrapper] containing the discretized data
    */
   private[this] def computeCutPoints(x: LabeledVector): Vector[IntervalHeapWrapper] = {
-    log.info(s"ComputeCutPoints($x)")
+    //    log.info(s"ComputeCutPoints($x)")
     val attrs = x.vector map (_._2)
     attrs
       .zipWithIndex
@@ -128,7 +128,7 @@ class IDADiscretizer extends Serializable with WithParameters {
    *         with the bin the value was discretized to.
    */
   private[this] def updateSamples(v: LabeledVector): LabeledVector = {
-    log.info(s"updateSamples($v)")
+    //    log.info(s"updateSamples($v)")
     val attrs = v.vector.map(_._2)
     val label = v.label
     // TODO: Check for missing values
