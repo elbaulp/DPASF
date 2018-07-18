@@ -20,7 +20,6 @@ package com.elbauldelprogramador.featureselection
 import java.util.concurrent.TimeUnit
 
 import com.elbauldelprogramador.BddSpec
-import com.elbauldelprogramador.discretizers.IDADiscretizer
 import com.elbauldelprogramador.pojo.Iris
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time

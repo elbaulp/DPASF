@@ -12,7 +12,7 @@ import org.apache.flink.ml.math.DenseVector
 
 object fixtures extends Serializable {
   //val env = ExecutionEnvironment.getExecutionEnvironment
-  val env = ExecutionEnvironment.createLocalEnvironment()
+  private val env = ExecutionEnvironment.createLocalEnvironment()
   env.setParallelism(1)
   //  env.getConfig.enableObjectReuse
   env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
@@ -20,7 +20,7 @@ object fixtures extends Serializable {
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
 
-  val data = env.readCsvFile[Iris](getClass.getResource("/iris2.dat").getPath)
+  private val data = env.readCsvFile[Iris](getClass.getResource("/iris2.dat").getPath)
   //val dataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
   //  val data = (1 to 10).map(_ => Seq(Random.nextDouble, Random.nextDouble, Random.nextInt))
   //  val dataSet = env.fromCollection(data map { tuple =>
@@ -29,15 +29,11 @@ object fixtures extends Serializable {
   //    LabeledVector(numList(2), DenseVector(numList.take(2).toArray))
   //  })
   //val data1 = env.fromCollection(data)
-  val dataSet = data map { tuple =>
+  private[discretizers] val dataSet = data map { tuple =>
     val list = tuple.productIterator.toList
     val numList = list map (_.asInstanceOf[Double])
     LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
   }
-  //  val dataSet = env.readCsvFile[ElecNormNew](
-  //    getClass.getResource("/elecNormNew.arff").getPath,
-  //    pojoFields = Array("date", "day", "period", "nswprice", "nswdemand", "vicprice", "vicdemand", "transfer", "label"))
-
 }
 
 // BDD tests
@@ -45,23 +41,16 @@ class IDADiscretizerSpec extends BddSpec with Serializable {
 
   import fixtures._
 
-  "A Category" - {
-    "When calling its Identity" - {
+  "A IDA Discretization" - {
+    "When computing its discretization" - {
       "Should be computed correctly" in {
-        val a = IDADiscretizer()
+        val ida = IDADiscretizerTransformer()
           .setBins(5)
           .setNumAttr(4)
+        val discretized = ida transform dataSet
+        val discretized2 = ida.discretizeWith(dataSet)
 
-        val discretized = a.discretize(dataSet)
-        val cuts = a.cutPoints(dataSet)
-        val discretized2 = a discretizeWith (cuts, dataSet)
         assert(discretized.collect.last === discretized2.collect.last)
-      }
-    }
-    "When composing it" - {
-      "Should be associative" in {
-        //assert(Category.compose(Category.compose(f, g), h)(1) ==
-        //  Category.compose(f, Category.compose(g, h))(1))
       }
     }
   }
