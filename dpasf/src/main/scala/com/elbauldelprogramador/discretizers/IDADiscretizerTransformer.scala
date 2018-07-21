@@ -69,12 +69,12 @@ class IDADiscretizerTransformer extends Transformer[IDADiscretizerTransformer] {
   }
 
   /**
-    * Use a previously computed discretization to discretize a [[DataSet]] with the given
-    * cutpoints.
-    *
-    * @param data The new [[DataSet]] to discretize
-    * @return The input [[DataSet]] discretized with the same cutpoints as the previous discretization
-    */
+   * Use a previously computed discretization to discretize a [[DataSet]] with the given
+   * cutpoints.
+   *
+   * @param data The new [[DataSet]] to discretize
+   * @return The input [[DataSet]] discretized with the same cutpoints as the previous discretization
+   */
   def discretizeWith(data: DataSet[LabeledVector]): DataSet[LabeledVector] = {
     cuts match {
       case Some(c) =>
