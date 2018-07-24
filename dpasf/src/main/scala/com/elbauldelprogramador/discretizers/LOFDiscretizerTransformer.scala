@@ -17,8 +17,8 @@
 package com.elbauldelprogramador.discretizers
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.Parameter
-import org.apache.flink.ml.pipeline.Transformer
+import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
+import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 
 /**
  * Local Online Fusion Discretizer (LOFD)
@@ -105,47 +105,6 @@ class LOFDiscretizerTransformer extends Transformer[LOFDiscretizerTransformer] {
     parameters add (ProvideProb, probs)
     this
   }
-
-  /**
-    * Sets
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
-  def set(): LOFDiscretizerTransformer = {
-
-    this
-  }
-
-  /**
-    * Sets
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
-  def set(): LOFDiscretizerTransformer = {
-
-    this
-  }
-
-  /**
-    * Sets
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
-  def set(): LOFDiscretizerTransformer = {
-
-    this
-  }
-
-  /**
-    * Sets
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
-  def set(): LOFDiscretizerTransformer = {
-
-    this
-  }
-
 }
 
 object  LOFDiscretizerTransformer {
@@ -183,4 +142,28 @@ object  LOFDiscretizerTransformer {
   def apply(): LOFDiscretizerTransformer = new LOFDiscretizerTransformer
 
   // ========================================== Operations =========================================
+  implicit val fitLabeledVectorLOFD = new FitOperation[LOFDiscretizerTransformer, LabeledVector] {
+    override def fit(instance: LOFDiscretizerTransformer,
+      fitParameters: ParameterMap,
+      input: DataSet[LabeledVector]): Unit = {
+
+      val resultingParameters = instance.parameters ++ fitParameters
+
+      ???
+    }
+  }
+
+  implicit val transformDataSetLabeledVectorsInfoGain = {
+    new TransformDataSetOperation[LOFDiscretizerTransformer, LabeledVector, LabeledVector] {
+      override def transformDataSet(
+        instance: LOFDiscretizerTransformer,
+        transformParameters: ParameterMap,
+        input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
+
+        val resultingParameters = instance.parameters ++ transformParameters
+
+        ???
+      }
+    }
+  }
 }

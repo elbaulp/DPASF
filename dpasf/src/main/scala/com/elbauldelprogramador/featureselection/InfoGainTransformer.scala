@@ -86,11 +86,11 @@ object InfoGainTransformer {
   private[this] val log = LoggerFactory.getLogger(this.getClass)
 
   // ====================================== Parameters =============================================
-  case object SelectNF extends Parameter[Int] {
+  private[InfoGainTransformer] case object SelectNF extends Parameter[Int] {
     val defaultValue: Option[Int] = Some(10)
   }
 
-  case object NFeatures extends Parameter[Int] {
+  private[InfoGainTransformer] case object NFeatures extends Parameter[Int] {
     val defaultValue: Option[Int] = Some(1)
   }
 
