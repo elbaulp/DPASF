@@ -92,6 +92,7 @@ public class LOFDiscretizer
      * @return A new instance discretized.
      */
     public LabeledVector applyDiscretization(LabeledVector inst) {
+        updateEvaluator(inst);
         if(m_Init){
             for (int i = 0; i < inst.vector().size(); i++) {
                 // if numeric and not missing, discretize

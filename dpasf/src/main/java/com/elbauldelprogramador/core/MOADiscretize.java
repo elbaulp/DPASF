@@ -3,6 +3,9 @@ package com.elbauldelprogramador.core;
 import com.yahoo.labs.samoa.instances.*;
 import org.apache.flink.ml.common.LabeledVector;
 import org.apache.flink.ml.math.DenseVector;
+import scala.None;
+import scala.Option;
+import scala.Some;
 import weka.core.Attribute;
 import weka.core.ContingencyTables;
 import weka.core.Range;
@@ -274,16 +277,37 @@ public abstract class MOADiscretize
      * Gets the cut points for an attribute
      *
      * @param attributeIndex the index (from 0) of the attribute to get the cut
-     *                       points of
-     * @return an array containing the cutpoints (or null if the attribute
-     * requested isn't being Discretized
+     *          points of
+     * @return an Optional array containing the cutpoints (or None if the attribute
+     *         requested isn't being Discretized
      */
-    public double[] getCutPoints(int attributeIndex) {
+    public Option<double[]> getCutPoints(int attributeIndex) {
 
-        if (m_CutPoints == null) {
-            return null;
-        }
-        return m_CutPoints[attributeIndex];
+        scala.Option<double[]> cut; //= Option.apply(m_CutPoints[attributeIndex]);
+
+        if (m_CutPoints == null || m_CutPoints[attributeIndex] == null)
+            cut = Option.apply(null);
+        else
+            cut = Option.apply(m_CutPoints[attributeIndex]);
+
+        return cut;
+    }
+
+    /**
+     * Gets the cut points for the current discretization
+     *
+     * @return an Optional array containing the cutpoints (or None if
+     * still not discretized )
+     */
+    public Option<double[][]> getCutPoints() {
+        scala.Option<double[][]> cut;
+
+        if (m_CutPoints == null)
+            cut = scala.Option.apply(null);
+         else
+            cut = Option.apply(m_CutPoints);
+
+        return cut;
     }
 
     /**

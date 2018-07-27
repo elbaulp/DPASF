@@ -21,9 +21,12 @@ import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.Counter
-import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
-import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
-import scala.collection.immutable.{ Queue, TreeMap }
+import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
+import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
+import org.slf4j.LoggerFactory
+import sun.rmi.runtime.Log.LoggerLogFactory
+
+import scala.collection.immutable.{Queue, TreeMap}
 import scala.collection.mutable
 //import scala.collection.mutable.MutableList
 //import scala.collection.mutable.Vector
@@ -43,6 +46,8 @@ import scala.collection.mutable
 class LOFDiscretizerTransformer extends Transformer[LOFDiscretizerTransformer] {
 
   import LOFDiscretizerTransformer._
+
+  private[discretizers] var cuts: Option[Array[Array[Double]]] = None
 
   /**
    * Sets the Alpha parameter
@@ -117,6 +122,8 @@ class LOFDiscretizerTransformer extends Transformer[LOFDiscretizerTransformer] {
 
 object LOFDiscretizerTransformer {
 
+  private[this] val log = LoggerFactory.getLogger(this.getClass)
+
   // ========================================== Parameters =========================================
   private[LOFDiscretizerTransformer] case object Alpha extends Parameter[Double] {
     val defaultValue: Option[Double] = Some(.5)
@@ -150,49 +157,16 @@ object LOFDiscretizerTransformer {
   def apply(): LOFDiscretizerTransformer = new LOFDiscretizerTransformer
 
   // ========================================== Operations =========================================
-  implicit val fitLabeledVectorLOFD = new FitOperation[LOFDiscretizerTransformer, LabeledVector] {
+
+  /**
+    * [[LOFDiscretizerTransformer]] does not need a fitting phase
+    */
+  implicit val fitNoOp = new FitOperation[LOFDiscretizerTransformer, LabeledVector] {
     override def fit(
       instance: LOFDiscretizerTransformer,
       fitParameters: ParameterMap,
-      input: DataSet[LabeledVector]): Unit = {
+      input: DataSet[LabeledVector]): Unit = ()
 
-      val resultingParameters = instance.parameters ++ fitParameters
-      val alpha = resultingParameters(Alpha)
-      val lambda = resultingParameters(Lambda)
-      val initTh = resultingParameters(InitTH)
-      val maxHist = resultingParameters(MaxHist)
-      val decimals = resultingParameters(Decimals)
-      val maxLabels = resultingParameters(MaxLabels)
-      val provideProb = resultingParameters(ProvideProb)
-
-      // Initialize variables
-      // Thanks to https://stackoverflow.com/a/51497661/1612432
-      val nAttrs = input
-        // only forward first vector of each partition
-        .mapPartition(in => if (in.hasNext) Seq(in.next) else Seq())
-        // move all remaining vectors to a single partition, compute size of the first and forward it
-        .mapPartition(in => if (in.hasNext) Seq(in.next.vector.size) else Seq())
-        .setParallelism(1)
-        .collect
-        .head
-
-      val nClasses = input.map(_.label)
-        .distinct
-        .count
-        .toInt
-
-      var lofd = new LOFDiscretizer(maxHist,
-        initTh,
-        decimals,
-        maxLabels,
-        nClasses)
-
-      val r  = input.map { v =>
-        lofd.updateEvaluator(v)
-        lofd.applyDiscretization(v)
-      }
-
-      r.print
 
 
 //      val allIntervals = Vector.tabulate(nAttrs)(_ => TreeMap.empty[Double, Int]) // TODO INTERVAL
@@ -222,7 +196,7 @@ object LOFDiscretizerTransformer {
 //        }
 //
 //      }
-    }
+
   }
 
   /**
@@ -264,8 +238,37 @@ object LOFDiscretizerTransformer {
         input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
 
         val resultingParameters = instance.parameters ++ transformParameters
+        val alpha = resultingParameters(Alpha)
+        val lambda = resultingParameters(Lambda)
+        val initTh = resultingParameters(InitTH)
+        val maxHist = resultingParameters(MaxHist)
+        val decimals = resultingParameters(Decimals)
+        val maxLabels = resultingParameters(MaxLabels)
+        val provideProb = resultingParameters(ProvideProb)
 
-        input
+        // Initialize variables
+        // Thanks to https://stackoverflow.com/a/51497661/1612432
+//        val nAttrs = input
+//          // only forward first vector of each partition
+//          .mapPartition(in => if (in.hasNext) Seq(in.next) else Seq())
+//          // move all remaining vectors to a single partition, compute size of the first and forward it
+//          .mapPartition(in => if (in.hasNext) Seq(in.next.vector.size) else Seq())
+//          .setParallelism(1)
+//          .collect
+//          .head
+
+        val nClasses = input.map(_.label)
+          .distinct
+          .count
+          .toInt
+
+        val lofd = new LOFDiscretizer(maxHist,
+          initTh,
+          decimals,
+          maxLabels,
+          nClasses)
+
+        input.map (lofd.applyDiscretization _)
       }
     }
   }

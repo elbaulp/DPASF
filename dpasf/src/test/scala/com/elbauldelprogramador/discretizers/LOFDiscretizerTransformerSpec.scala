@@ -33,7 +33,8 @@ class LOFDiscretizerTransformerSpec extends BddSpec with Serializable {
   "A Information Gain FS on TennnisDS" - {
     "When computing its Entropy" - {
       "Should return entropy H(X) equal to 0.9402859586706309" in {
-        ofs fit dataSet
+        val r  = ofs transform dataSet
+        r.first(10).print
         assert(data == data)
         //        assert(r === r)
       }
