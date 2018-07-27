@@ -1,18 +1,18 @@
 package com.elbauldelprogramador.pojo
 
 // elecNormNew POJO
-class ElecNormNew(
+case class ElecNormNew(
   var date: Double,
-  var day: Int,
+  var day: Double,
   var period: Double,
   var nswprice: Double,
   var nswdemand: Double,
   var vicprice: Double,
   var vicdemand: Double,
   var transfer: Double,
-  var label: String) extends Serializable {
+  var label: Double) extends Serializable {
 
-  def this() = {
-    this(0, 0, 0, 0, 0, 0, 0, 0, "")
-  }
+//  def this() = {
+//    this(0, 0, 0, 0, 0, 0, 0, 0, "")
+//  }
 }

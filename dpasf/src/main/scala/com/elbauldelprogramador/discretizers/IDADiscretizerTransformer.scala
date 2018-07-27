@@ -19,10 +19,11 @@ package com.elbauldelprogramador.discretizers
 
 import com.elbauldelprogramador.datastructures.IntervalHeapWrapper
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
+import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
+import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
 import org.slf4j.LoggerFactory
+
 
 /**
  * Incremental Discretization Algorithm

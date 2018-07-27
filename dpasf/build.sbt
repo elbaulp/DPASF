@@ -14,9 +14,9 @@ scalaVersion in ThisBuild := "2.11.3"
 val flinkVersion = "1.5.0"
 
 val genericDeps = Seq(
-  "nz.ac.waikato.cms.moa" % "moa" % "2017.06",
-  "nz.ac.waikato.cms.weka" % "weka-stable" % "3.8.2"
-//  "nz.ac.waikato.cms.moa" % "moa" % "2018.6.0"
+//  "nz.ac.waikato.cms.moa" % "moa" % "2017.06",
+  "nz.ac.waikato.cms.weka" % "weka-stable" % "3.8.2",
+  "nz.ac.waikato.cms.moa" % "moa" % "2018.6.0"
 )
 
 val flinkDependencies = Seq(

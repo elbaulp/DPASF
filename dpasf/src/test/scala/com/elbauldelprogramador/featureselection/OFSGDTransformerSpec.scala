@@ -39,9 +39,7 @@ class OFSGDTransformerSpec extends BddSpec with Serializable {
   private val data = MLUtils.readLibSVM(env, getClass.getResource("/svmguide3").getPath)
 
   private val ofs = OFSGDTransformer()
-      .setNFeature(5)
-
-
+    .setNFeature(5)
 
   "A Information Gain FS on TennnisDS" - {
     "When computing its Entropy" - {
