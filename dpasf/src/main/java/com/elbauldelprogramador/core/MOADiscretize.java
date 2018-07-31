@@ -283,7 +283,7 @@ public abstract class MOADiscretize
      */
     public Option<double[]> getCutPoints(int attributeIndex) {
 
-        scala.Option<double[]> cut; //= Option.apply(m_CutPoints[attributeIndex]);
+        Option<double[]> cut; //= Option.apply(m_CutPoints[attributeIndex]);
 
         if (m_CutPoints == null || m_CutPoints[attributeIndex] == null)
             cut = Option.apply(null);
@@ -300,10 +300,10 @@ public abstract class MOADiscretize
      * still not discretized )
      */
     public Option<double[][]> getCutPoints() {
-        scala.Option<double[][]> cut;
+        Option<double[][]> cut;
 
         if (m_CutPoints == null)
-            cut = scala.Option.apply(null);
+            cut = Option.apply(null);
          else
             cut = Option.apply(m_CutPoints);
 
@@ -372,27 +372,29 @@ public abstract class MOADiscretize
      * Set the output format. Takes the currently defined cutpoints and
      * m_InputFormat and calls setOutputFormat(Instances) appropriately.
      */
-    protected weka.core.Instances changeOutputFormat(weka.core.Instances inputFormat) {
+    protected LabeledVector changeOutputFormat(LabeledVector inst) {
 
         if (m_CutPoints == null) {
             //setOutputFormat(null);
             return null;
         }
-        ArrayList<Attribute> attributes = new ArrayList<Attribute>(inputFormat.numAttributes());
-        int classIndex = inputFormat.classIndex();
-        for (int i = 0, m = inputFormat.numAttributes(); i < m; ++i) {
-            if ((m_DiscretizeCols.isInRange(i))
-                    && (inputFormat.attribute(i).isNumeric())) {
+        int nAttrs = inst.vector().size();
+        ArrayList<Double> attributes = new ArrayList<Double>(nAttrs);
+        DenseVector dense = DenseVector.zeros(nAttrs);
+//        int classIndex = inst.classIndex();
+        for (int i = 0, m = nAttrs; i < m; ++i) {
+            if ((m_DiscretizeCols.isInRange(i))) {
 
                 Set<String> cutPointsCheck = new HashSet<String>();
                 double[] cutPoints = m_CutPoints[i];
 
-                ArrayList<String> attribValues;
+                ArrayList<Double> attribValues;
+                double attrvalue = 0.0;
                 if (cutPoints == null) {
-                    attribValues = new ArrayList<String>(1);
-                    attribValues.add("'All'");
+                    attribValues = new ArrayList<Double>(1);
+//                    attribValues.add("'All'");
                 } else {
-                    attribValues = new ArrayList<String>(cutPoints.length + 1);
+                    attribValues = new ArrayList<>(cutPoints.length + 1);
                     boolean predefinedLabels = false;
                     if (m_Labels != null && m_Labels[i] != null) {
                         if (m_Labels[i].length == m_CutPoints[i].length)
@@ -400,40 +402,43 @@ public abstract class MOADiscretize
                     }
                     if (predefinedLabels) {
                         for (int j = 0; j < m_Labels[i].length; j++) {
-                            attribValues.add(m_Labels[i][j]);
+                            attrvalue = Double.parseDouble(m_Labels[i][j]);
                         }
-                    } else {
-
-                        for (int j = 0, n = cutPoints.length; j <= n; ++j) {
-                            String newBinRangeString = binRangeString(cutPoints, j,
-                                    m_BinRangePrecision);
-                            if (cutPointsCheck.contains(newBinRangeString)) {
-                                throw new IllegalArgumentException(
-                                        "A duplicate bin range was detected. "
-                                                + "Try increasing the bin range precision.");
-                            }
-                            attribValues.add("'" + newBinRangeString + "'");
-                        }
-                    }
+                    } // else {
+//
+//                        for (int j = 0, n = cutPoints.length; j <= n; ++j) {
+//                            String newBinRangeString = binRangeString(cutPoints, j,
+//                                    m_BinRangePrecision);
+//                            if (cutPointsCheck.contains(newBinRangeString)) {
+//                                throw new IllegalArgumentException(
+//                                        "A duplicate bin range was detected. "
+//                                                + "Try increasing the bin range precision.");
+//                            }
+//                            attribValues.add("'" + newBinRangeString + "'");
+//                        }
+//                    }
                 }
 
-                //System.out.println("Att: " + i);
-                //System.out.println("Att values: " + attribValues);
-                Attribute newAtt = new Attribute(
-                        inputFormat.attribute(i).name(), attribValues);
-                newAtt.setWeight(inputFormat.attribute(i).weight());
-                attributes.add(newAtt);
-
-            } else {
-                attributes.add((Attribute) inputFormat.attribute(i).copy());
+                dense.update(i, attrvalue);
             }
+//                //System.out.println("Att: " + i);
+//                //System.out.println("Att values: " + attribValues);
+//                Attribute newAtt = new Attribute(
+//                        inst.attribute(i).name(), attribValues);
+//                newAtt.setWeight(inst.attribute(i).weight());
+//                attributes.add(newAtt);
+//
+//            } else {
+//                attributes.add((Attribute) inst.attribute(i).copy());
+//            }
+            }
+
+//        weka.core.Instances outputFormat = new weka.core.Instances(inst.relationName(),
+//                attributes, 0);
+//        outputFormat.setClassIndex(classIndex);
+            return new LabeledVector(inst.label(), dense);
         }
 
-        weka.core.Instances outputFormat = new weka.core.Instances(inputFormat.relationName(),
-                attributes, 0);
-        outputFormat.setClassIndex(classIndex);
-        return outputFormat;
-    }
 
     /**
      * Convert a single instance over. The converted instance is added to the end

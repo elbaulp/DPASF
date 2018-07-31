@@ -28,15 +28,18 @@ class LOFDiscretizerTransformerSpec extends BddSpec with Serializable {
   }
 
   private val ofs = LOFDiscretizerTransformer()
+    .setInitTh(1)
 
 
   "A Information Gain FS on TennnisDS" - {
     "When computing its Entropy" - {
       "Should return entropy H(X) equal to 0.9402859586706309" in {
-        val r  = ofs transform dataSet
-        r.first(10).print
-        assert(data == data)
-        //        assert(r === r)
+
+        ofs.fit (dataSet)
+        val discretized = ofs transform(dataSet)
+        val discretized2 = ofs.discretizeWith(dataSet)
+
+        assert(discretized.collect.last === discretized2.collect.last)
       }
     }
   }

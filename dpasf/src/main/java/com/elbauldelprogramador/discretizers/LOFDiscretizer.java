@@ -94,25 +94,45 @@ public class LOFDiscretizer
     public LabeledVector applyDiscretization(LabeledVector inst) {
         updateEvaluator(inst);
         if(m_Init){
-            for (int i = 0; i < inst.vector().size(); i++) {
-                // if numeric and not missing, discretize
-//                if(inst.attribute(i).isNumeric() && !inst.isMissing(i)) {
-                    double[] boundaries = new double[allIntervals[i].size()];
-                    String[] labels = new String[allIntervals[i].size()];
-                    int j = 0;
-                    for (Iterator<Interval> iterator = allIntervals[i].values().iterator(); iterator
-                            .hasNext();) {
-                        Interval interv = iterator.next();
-                        labels[j] = Integer.toString(interv.label);
-                        boundaries[j++] = interv.end;
-                    }
-                    m_Labels[i] = labels;
-                    m_CutPoints[i] = boundaries;
-//                }
-            }
+            discretizeLoop(inst);
             return convertInstance(inst);
         }
         return inst;
+    }
+
+    private void discretizeLoop(LabeledVector inst) {
+        for (int i = 0; i < inst.vector().size(); i++) {
+            // if numeric and not missing, discretize
+//                if(inst.attribute(i).isNumeric() && !inst.isMissing(i)) {
+                double[] boundaries = new double[allIntervals[i].size()];
+                String[] labels = new String[allIntervals[i].size()];
+                int j = 0;
+                for (Iterator<Interval> iterator = allIntervals[i].values().iterator(); iterator
+                        .hasNext();) {
+                    Interval interv = iterator.next();
+                    labels[j] = Integer.toString(interv.label);
+                    boundaries[j++] = interv.end;
+                }
+                m_Labels[i] = labels;
+                m_CutPoints[i] = boundaries;
+//                }
+        }
+    }
+
+    /**
+     * Apply the discretization scheme to a new incoming instance.
+     * The discretization scheme must be generated previously.
+     * @param inst a new instance.
+     * @return A new instance discretized.
+     */
+    public LabeledVector applyDiscretizationForCutsPoints(LabeledVector inst) {
+        updateEvaluator(inst);
+//        if(m_Init){
+        discretizeLoop(inst);
+        convertInstance(inst);
+        return changeOutputFormat(inst);
+//        }
+//        return m_;
     }
 
     /**
