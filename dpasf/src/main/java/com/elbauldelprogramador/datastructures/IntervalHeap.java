@@ -368,6 +368,32 @@ public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable 
     }
 
     /**
+     * Return and remove the minimum element.
+     */
+    @Override
+    public E pollFirst() {
+        int iBound = queue.size() - 1;
+        if (iBound < 1) {
+            return queue.remove(0);
+        } else {
+            E e = queue.get(0);
+            if (iBound > 0) {
+                queue.set(0, queue.remove(iBound));
+                int i = pushDownMin(0);
+                if (i + 1 == iBound) {
+                    pullUpMax(i);
+                } else if (i + 1 < iBound && lessAt(i + 1, i)) {
+                    // i is a leaf of the min heap
+                    assert ((i << 1) + 2 > iBound);
+                    swap(queue, i + 1, i);
+                    pullUpMax(i + 1);
+                }
+            }
+            return e;
+        }
+    }
+
+    /**
      * Return and remove the maximum element.
      */
     @Override
@@ -390,32 +416,6 @@ public class IntervalHeap<E> extends AbstractDequeue<E> implements Serializable 
                     assert ((i << 1) + 1 > iBound);
                     swap(queue, i, i - 1);
                     pullUpMin(i - 1);
-                }
-            }
-            return e;
-        }
-    }
-
-    /**
-     * Return and remove the minimum element.
-     */
-    @Override
-    public E pollFirst() {
-        int iBound = queue.size() - 1;
-        if (iBound < 1) {
-            return queue.remove(0);
-        } else {
-            E e = queue.get(0);
-            if (iBound > 0) {
-                queue.set(0, queue.remove(iBound));
-                int i = pushDownMin(0);
-                if (i + 1 == iBound) {
-                    pullUpMax(i);
-                } else if (i + 1 < iBound && lessAt(i + 1, i)) {
-                    // i is a leaf of the min heap
-                    assert ((i << 1) + 2 > iBound);
-                    swap(queue, i + 1, i);
-                    pullUpMax(i + 1);
                 }
             }
             return e;

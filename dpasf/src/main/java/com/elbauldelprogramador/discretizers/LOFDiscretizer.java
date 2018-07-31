@@ -1,26 +1,15 @@
 package com.elbauldelprogramador.discretizers;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.TreeMap;
-
 import com.elbauldelprogramador.core.MOADiscretize;
 import org.apache.flink.ml.common.LabeledVector;
 import weka.core.Utils;
 
-import com.yahoo.labs.samoa.instances.Instance;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Serializable;
+import java.util.*;
+import java.util.Map.Entry;
 
 /**
  * Local Online Fusion Discretizer<br/>
@@ -36,11 +25,11 @@ public class LOFDiscretizer
         extends MOADiscretize
         implements Serializable {
 
+    TreeMap<Float, Interval>[] allIntervals;
     /**
      *
      */
     private int totalCount, numClasses, numAttributes;
-    TreeMap<Float, Interval>[] allIntervals;
     private float lambda, alpha;
     private int initTh;
     private int maxHist;
@@ -52,6 +41,23 @@ public class LOFDiscretizer
     private int[] contLabels;
     private int[][] classByAtt;
 
+
+    /**
+     * Second constructor. It allows to change the values of the user-defined parameters.
+     *
+     * @param maxhist   Maximum number of elements in each histogram inside intervals.
+     * @param initTh    Initial threshold which determines the number of instance before generating the first intervals.
+     * @param decimals  Number of decimals used to round points.
+     * @param maxLabels Maximum number of labels to used in queues.
+     */
+    public LOFDiscretizer(int maxhist, int initTh, int decimals, int maxLabels, int numClasses) {
+        this();
+        this.initTh = initTh;
+        this.decimals = decimals;
+        this.maxHist = maxhist;
+        this.maxLabels = maxLabels;
+        this.numClasses = numClasses;
+    }
 
     /**
      * Default constructor. Parameters has been set to
@@ -69,153 +75,76 @@ public class LOFDiscretizer
         this.provideProb = true;
     }
 
-    /**
-     * Second constructor. It allows to change the values of the user-defined parameters.
-     * @param maxhist Maximum number of elements in each histogram inside intervals.
-     * @param initTh Initial threshold which determines the number of instance before generating the first intervals.
-     * @param decimals Number of decimals used to round points.
-     * @param maxLabels Maximum number of labels to used in queues.
-     */
-    public LOFDiscretizer(int maxhist, int initTh, int decimals, int maxLabels, int numClasses) {
-        this();
-        this.initTh = initTh;
-        this.decimals = decimals;
-        this.maxHist = maxhist;
-        this.maxLabels = maxLabels;
-        this.numClasses = numClasses;
-    }
-
-    /**
-     * Apply the discretization scheme to a new incoming instance.
-     * The discretization scheme must be generated previously.
-     * @param inst a new instance.
-     * @return A new instance discretized.
-     */
-    public LabeledVector applyDiscretization(LabeledVector inst) {
-        updateEvaluator(inst);
-        if(m_Init){
-            discretizeLoop(inst);
-            return convertInstance(inst);
-        }
-        return inst;
-    }
-
     private void discretizeLoop(LabeledVector inst) {
         for (int i = 0; i < inst.vector().size(); i++) {
-            // if numeric and not missing, discretize
-//                if(inst.attribute(i).isNumeric() && !inst.isMissing(i)) {
-                double[] boundaries = new double[allIntervals[i].size()];
-                String[] labels = new String[allIntervals[i].size()];
-                int j = 0;
-                for (Iterator<Interval> iterator = allIntervals[i].values().iterator(); iterator
-                        .hasNext();) {
-                    Interval interv = iterator.next();
-                    labels[j] = Integer.toString(interv.label);
-                    boundaries[j++] = interv.end;
-                }
-                m_Labels[i] = labels;
-                m_CutPoints[i] = boundaries;
-//                }
+            double[] boundaries = new double[allIntervals[i].size()];
+            String[] labels = new String[allIntervals[i].size()];
+            int j = 0;
+            for (Interval interv : allIntervals[i].values()) {
+                labels[j] = Integer.toString(interv.label);
+                boundaries[j++] = interv.end;
+            }
+            m_Labels[i] = labels;
+            m_CutPoints[i] = boundaries;
         }
     }
 
     /**
      * Apply the discretization scheme to a new incoming instance.
      * The discretization scheme must be generated previously.
+     *
      * @param inst a new instance.
      * @return A new instance discretized.
      */
     public LabeledVector applyDiscretizationForCutsPoints(LabeledVector inst) {
         updateEvaluator(inst);
-//        if(m_Init){
         discretizeLoop(inst);
         convertInstance(inst);
         return changeOutputFormat(inst);
-//        }
-//        return m_;
-    }
-
-    /**
-     *  Update the discretization scheme.
-     *  @param instance an incoming instance.
-     */
-    public void updateEvaluator(LabeledVector instance) {
-        int numAttributes = instance.vector().size();
-
-        if(m_CutPoints == null) {
-            initializeLayers(instance);
-        }
-
-        totalCount++;
-        // Count number of elements per class
-        for (int i = 0; i < numAttributes; i++) {
-//            if(instance.attribute(i).isNumeric() && !instance.isMissing(i)) {
-                classByAtt[i][(int) instance.label()]++;
-//            }
-        }
-
-        // If there are enough instances to initialize cut points, do it!
-        if(totalCount >= initTh){
-            if(m_Init) {
-                for (int i = 0; i < numAttributes; i++) {
-//                    if(instance.attribute(i).isNumeric() && !instance.isMissing(i)) {
-                        insertExample(i, instance);
-//                    }
-                }
-                addExampleToQueue(instance);
-            } else {
-                addExampleToQueue(instance);
-                batchFusinter(instance);
-
-                m_Init = true;
-            }
-        } else {
-            addExampleToQueue(instance);
-        }
     }
 
     /**
      * Add values to the queues (by attribute). In this way, points are ordered by timestamp and
      * can be removed safely.
+     *
      * @param instance an incoming isntance.
      */
     private void addExampleToQueue(LabeledVector instance) {
         // Queue new values
         for (int i = 0; i < instance.vector().size(); i++) {
-            // if numeric and not missing, discretize
-//            if(instance.attribute(i).isNumeric() && !instance.isMissing(i)) {
-                elemQ[i].add(new Tuple<Float, Byte>(
-                        getInstanceValue(instance.vector().apply(i)), (byte)instance.label()));
-//            }
+            elemQ[i].add(new Tuple<>(
+                    getInstanceValue(instance.vector().apply(i)), (byte) instance.label()));
         }
     }
 
     /**
      * Remove points from the queue till enough room is left for new points.
-     * @param att Attribute index
+     *
+     * @param att    Attribute index
      * @param interv Interval that needs exta space in its histogram.
-     * @param size Number of spaces to free.
+     * @param size   Number of spaces to free.
      */
     private void removeOldsUntilSize(int att, Interval interv, int size) {
-        while(!elemQ[att].isEmpty() && interv.histogram.size() > size) {
+        while (!elemQ[att].isEmpty() && interv.histogram.size() > size) {
             Tuple<Float, Byte> tuple = elemQ[att].poll();
-            if(removePointFromInteravls(att, tuple))
+            if (removePointFromInteravls(att, tuple))
                 classByAtt[att][tuple.y]--;
         }
     }
 
     /**
      * Remove a point from the set of intervals in an attribute.
-     * @param att Attribute index
+     *
+     * @param att  Attribute index
      * @param elem Class and value of the point
      * @return if removal is performed
      */
     private boolean removePointFromInteravls(int att, Tuple<Float, Byte> elem) {
         Map.Entry<Float, Interval> ceilingE = allIntervals[att].ceilingEntry(elem.x);
-        if(ceilingE != null){
+        if (ceilingE != null) {
             ceilingE.getValue().removePoint(att, elem.x, elem.y);
             // If interval is empty, remove it from the list
-            if(ceilingE.getValue().histogram.isEmpty()) {
+            if (ceilingE.getValue().histogram.isEmpty()) {
                 allIntervals[att].remove(ceilingE.getKey());
                 labelsToUse[att].add(ceilingE.getValue().label);
             }
@@ -228,21 +157,22 @@ public class LOFDiscretizer
      * Insert a new example in the discretization scheme. If it is a boundary point,
      * it is incorporated and a local fusion process is launched using this interval and
      * the surrounding ones. If not, the point just feed up the intervals.
-     * @param att Attribute index
+     *
+     * @param att      Attribute index
      * @param instance An incoming example
      */
-    private void insertExample(int att, LabeledVector instance){
+    private void insertExample(int att, LabeledVector instance) {
 
         int cls = (int) instance.label();
         float val = getInstanceValue(instance.vector().apply(att));
         // Get the ceiling interval for the given value
         Map.Entry<Float, Interval> centralE = allIntervals[att].ceilingEntry(val);
         // The point is within the range defined by centralE, if not a new maximum interval is created
-        LinkedList<Interval> intervalList = new LinkedList<Interval>();
-        if(centralE != null) {
+        LinkedList<Interval> intervalList = new LinkedList<>();
+        if (centralE != null) {
             Interval central = centralE.getValue();
             // If it is a boundary point, evaluate six different cutting alternatives
-            if(isBoundary(att, central, val, cls)){
+            if (isBoundary(att, central, val, cls)) {
                 // Add splitting point before dividing the interval
                 float oldKey = centralE.getKey();
                 central.addPoint(att, val, cls); // do not remove any interval from allIntervals, all needed
@@ -254,14 +184,13 @@ public class LOFDiscretizer
                 Map.Entry<Float, Interval> lowerE = allIntervals[att].lowerEntry(central.end);
                 Map.Entry<Float, Interval> higherE = allIntervals[att].higherEntry(splitI.end); // if not use splitI, we will take again central
                 // Insert in the specific order
-                if(lowerE != null) {
+                if (lowerE != null) {
                     intervalList.add(lowerE.getValue());
                     allIntervals[att].remove(lowerE.getKey());
                 }
                 intervalList.add(central);
-                if(splitI != null)
-                    intervalList.add(splitI);
-                if(higherE != null) {
+                intervalList.add(splitI);
+                if (higherE != null) {
                     intervalList.add(higherE.getValue());
                     allIntervals[att].remove(higherE.getKey());
                 }
@@ -272,7 +201,7 @@ public class LOFDiscretizer
                 central.addPoint(att, val, cls);
                 central.updateCriterion();
                 // Update the key with the bigger end
-                if(centralE.getKey() != central.end) {
+                if (centralE.getKey() != central.end) {
                     allIntervals[att].remove(centralE.getKey());
                     allIntervals[att].put(central.end, central);
                 }
@@ -282,7 +211,7 @@ public class LOFDiscretizer
             // New interval with a new maximum limit
             Map.Entry<Float, Interval> priorE = allIntervals[att].lowerEntry(val);
             // Insert in the specific order
-            if(priorE != null) {
+            if (priorE != null) {
                 intervalList.add(priorE.getValue());
                 allIntervals[att].remove(priorE.getKey());
             }
@@ -294,9 +223,8 @@ public class LOFDiscretizer
         }
 
         // Make an spot for new points, size limit's been achieved
-        for (Iterator<Interval> iterator = intervalList.iterator(); iterator.hasNext();) {
-            Interval interval = (Interval) iterator.next();
-            if(interval.histogram.size() > maxHist) {
+        for (Interval interval : intervalList) {
+            if (interval.histogram.size() > maxHist) {
                 removeOldsUntilSize(att, interval, maxHist);
             }
         }
@@ -305,11 +233,12 @@ public class LOFDiscretizer
 
     /**
      * Write discretization points in this iteration (for two attributes) to file.
-     * @param att1 Attribute index for first attribute.
-     * @param att2 Attribute index for second attribute.
+     *
+     * @param att1      Attribute index for first attribute.
+     * @param att2      Attribute index for second attribute.
      * @param iteration Iteration ID
      */
-    private void writeDataToFile(int att1, int att2, int iteration){
+    private void writeDataToFile(int att1, int att2, int iteration) {
         FileWriter data = null;
         try {
             data = new FileWriter("Reb-data" + "-" + iteration + ".dat");
@@ -317,7 +246,7 @@ public class LOFDiscretizer
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        PrintWriter dataout = new PrintWriter(data);
+        PrintWriter dataout = new PrintWriter(Objects.requireNonNull(data));
 
         for (int i = 0; i < elemQ.length; i++) {
             dataout.print(getInstanceValue(elemQ[att1].get(i).x) + "," +
@@ -341,15 +270,29 @@ public class LOFDiscretizer
     }
 
     /**
+     * Transform a point by rounding it according to the number of decimals
+     * defined as input parameter.
+     *
+     * @param value Value to transform
+     * @return Rounded value.
+     */
+    private float getInstanceValue(double value) {
+        if (decimals > 0) {
+            double mult = Math.pow(10, decimals);
+            return (float) (Math.round(value * mult) / mult);
+        }
+        return (float) value;
+    }
+
+    /**
      * Insert intervals in the global list of intervals.
-     * @param att Attribute index
+     *
+     * @param att          Attribute index
      * @param intervalList List of intervals to insert.
      */
-    private void insertIntervals(int att, LinkedList<Interval> intervalList){
-        for (Iterator<Interval> iterator = intervalList.iterator(); iterator
-                .hasNext();) {
-            Interval interval = iterator.next();
-            if(interval != null)
+    private void insertIntervals(int att, LinkedList<Interval> intervalList) {
+        for (Interval interval : intervalList) {
+            if (interval != null)
                 allIntervals[att].put(interval.end, interval);
         }
 
@@ -358,22 +301,23 @@ public class LOFDiscretizer
     /**
      * Check if a point is boundary by firstly inspecting the closest interval to this point,
      * and then by checking the next entry in the histogram.
-     * @param att Attribute index
+     *
+     * @param att     Attribute index
      * @param ceiling The closest interval to the point.
-     * @param value Point value
-     * @param clas Class value
+     * @param value   Point value
+     * @param clas    Class value
      * @return True if it is boundary, false otherwise.
      */
-    private boolean isBoundary(int att, Interval ceiling, float value, int clas){
+    private boolean isBoundary(int att, Interval ceiling, float value, int clas) {
 
         boolean boundary = false;
 
-        if(value != ceiling.end) {
+        if (value != ceiling.end) {
             Entry<Float, int[]> following = ceiling.histogram.ceilingEntry(value);
             // The next point is in another interval (interval with a single point)
-            if(following == null) {
+            if (following == null) {
                 Entry<Float, Interval> higherE = allIntervals[att].higherEntry(ceiling.end);
-                if(higherE == null) {
+                if (higherE == null) {
                     boundary = true; // no more points at the right side
                 } else {
                     following = higherE.getValue().histogram.ceilingEntry(value);
@@ -384,10 +328,10 @@ public class LOFDiscretizer
                 }
             } else {
                 // If the point already exists before, evaluate if it is now a boundary
-                if(following.getKey() == value) {
+                if (following.getKey() == value) {
 
                     Entry<Float, int[]> nextnext = ceiling.histogram.higherEntry(value);
-                    if(nextnext != null) {
+                    if (nextnext != null) {
                         int[] cd1 = following.getValue();
                         cd1[clas]++;
                         boundary = isBoundary(cd1, nextnext.getValue());
@@ -410,15 +354,16 @@ public class LOFDiscretizer
 
     /**
      * Check histograms to assert the boundary condition.
+     *
      * @param cd1 Class histogram for point one.
      * @param cd2 Class histogram for point two.
      * @return @return True if it is boundary, false otherwise.
      */
-    private boolean isBoundary(int[] cd1, int[] cd2){
+    private boolean isBoundary(int[] cd1, int[] cd2) {
         int count = 0;
         for (int i = 0; i < cd1.length; i++) {
-            if(cd1[i] + cd2[i] > 0) {
-                if(++count > 1) {
+            if (cd1[i] + cd2[i] > 0) {
+                if (++count > 1) {
                     return true;
                 }
             }
@@ -428,14 +373,14 @@ public class LOFDiscretizer
 
     /**
      * Print basic information about a list of intervals
-     * @param att Attribute index
+     *
+     * @param att       Attribute index
      * @param intervals List of intervals
      */
-    private void printIntervals(int att, Collection<Interval> intervals){
+    private void printIntervals(int att, Collection<Interval> intervals) {
         System.out.println("Atributo: " + att);
         int sum = 0;
-        for (Iterator<Interval> iterator = intervals.iterator(); iterator.hasNext();) {
-            Interval interval = (Interval) iterator.next();
+        for (Interval interval : intervals) {
             for (int i = 0; i < interval.cd.length; i++) {
                 sum += interval.cd[i];
             }
@@ -446,59 +391,55 @@ public class LOFDiscretizer
     /**
      * Apply standard FUSINTER to the first batch of examples. Then the discretization scheme
      * is initialized to apply further local changes.
+     *
      * @param model An example from this batch.
      */
     private void batchFusinter(LabeledVector model) {
         float[][] sorted = new float[numAttributes][];
         int nvalid = 0;
         LinkedList<Tuple<Float, Byte>> relem = null;
-        for (int i = 0; i < elemQ.length; i++) {
-            if(!elemQ[i].isEmpty()){
-                relem = elemQ[i];
+        for (LinkedList<Tuple<Float, Byte>> anElemQ : elemQ) {
+            if (!anElemQ.isEmpty()) {
+                relem = anElemQ;
                 break;
             }
         }
 
-        if(relem == null)
+        if (relem == null)
             System.err.println("Error: No numerical attribute in the dataset.");
 
-        final int[] classData = new int[relem.size()];
+        final int[] classData = new int[Objects.requireNonNull(relem).size()];
         for (int j = 0; j < relem.size(); j++) {
             classData[j] = relem.get(j).y;
             nvalid++;
         }
 
         for (int i = numAttributes - 1; i >= 0; i--) {
-            if ((m_DiscretizeCols.isInRange(i))){
-//                    && (model.attribute(i).isNumeric())
-//                    && (model.classIndex() != i)) {
+            if ((m_DiscretizeCols.isInRange(i))) {
                 Integer[] idx = new Integer[nvalid];
                 sorted[i] = new float[elemQ[i].size()];
                 for (int j = 0; j < idx.length; j++) {
                     idx[j] = j;
-                    sorted [i][j] = getInstanceValue(elemQ[i].get(j).x);
+                    sorted[i][j] = getInstanceValue(elemQ[i].get(j).x);
                 }
                 final float[] data = sorted[i];
 
                 // Order by feature value and class
-                Arrays.sort(idx, new Comparator<Integer>() {
-                    @Override
-                    public int compare(final Integer o1, final Integer o2) {
-                        int cmp_value = Float.compare(data[o1], data[o2]);
-                        if(cmp_value == 0)
-                            cmp_value = Integer.compare(classData[o1], classData[o2]);
-                        return cmp_value;
-                    }
+                Arrays.sort(idx, (o1, o2) -> {
+                    int cmp_value = Float.compare(data[o1], data[o2]);
+                    if (cmp_value == 0)
+                        cmp_value = Integer.compare(classData[o1], classData[o2]);
+                    return cmp_value;
                 });
 
                 allIntervals[i] = initIntervals(i, idx);
                 printIntervals(i, allIntervals[i].values());
-                ArrayList<Interval> intervalList = new ArrayList<Interval>(allIntervals[i].values());
+                ArrayList<Interval> intervalList = new ArrayList<>(allIntervals[i].values());
                 evaluateLocalMerges(i, intervalList);
-                allIntervals[i] = new TreeMap<Float, Interval>();
+                allIntervals[i] = new TreeMap<>();
                 // Update keys in the tree map
-                for (int j = 0; j < intervalList.size(); j++) {
-                    allIntervals[i].put(intervalList.get(j).end, intervalList.get(j));
+                for (Interval anIntervalList : intervalList) {
+                    allIntervals[i].put(anIntervalList.end, anIntervalList);
                 }
                 printIntervals(i, allIntervals[i].values());
             }
@@ -507,26 +448,27 @@ public class LOFDiscretizer
 
     /**
      * Apply local merges to a list of intervals until no more improvements can be obtained.
-     * @param att Attribute index
+     *
+     * @param att          Attribute index
      * @param intervalList List of intervals to merge
      */
     private void evaluateLocalMerges(int att, List<Interval> intervalList) {
 
-        while(intervalList.size() > 1) {
+        while (intervalList.size() > 1) {
             float globalDiff = 0;
             int posMin = 0;
-            for(int i = 0; i < intervalList.size() - 1; i++) {
-                float newLocalCrit = evaluteMerge(intervalList.get(i).cd, intervalList.get(i+1).cd);
-                float difference = intervalList.get(i).crit + intervalList.get(i+1).crit - newLocalCrit;
-                if(difference > globalDiff){
+            for (int i = 0; i < intervalList.size() - 1; i++) {
+                float newLocalCrit = evaluteMerge(intervalList.get(i).cd, intervalList.get(i + 1).cd);
+                float difference = intervalList.get(i).crit + intervalList.get(i + 1).crit - newLocalCrit;
+                if (difference > globalDiff) {
                     posMin = i;
                     globalDiff = difference;
                 }
             }
 
-            if(globalDiff > 0) {
+            if (globalDiff > 0) {
                 Interval int1 = intervalList.get(posMin);
-                Interval int2 = intervalList.remove(posMin+1);
+                Interval int2 = intervalList.remove(posMin + 1);
                 int oldLabel = int1.mergeIntervals(int2);
                 labelsToUse[att].add(oldLabel);
             } else {
@@ -538,6 +480,7 @@ public class LOFDiscretizer
 
     /**
      * Evaluate a merge using both class histograms and the quadratic entropy measure.
+     *
      * @param cd1 Class histogram #1
      * @param cd2 Class histogram #2
      * @return Criterion value in case we merge both intervals.
@@ -547,11 +490,12 @@ public class LOFDiscretizer
         for (int i = 0; i < cds.length; i++) {
             cds[i] += cd2[i];
         }
-        return  evalInterval(cds);
+        return evalInterval(cds);
     }
 
     /**
      * Quadratic entropy value for this interval.
+     *
      * @param cd Class histogram for this interval.
      * @return Criterion value.
      */
@@ -566,39 +510,40 @@ public class LOFDiscretizer
             factor = (cd[j] + lambda) / (Nj + numClasses * lambda);
             suma += factor * (1 - factor);
         }
-        float crit = (alpha * ((float) Nj / totalCount) * suma) + ((1 - alpha) * (numClasses * lambda / Nj));
-        return crit;
+        // crit
+        return (alpha * ((float) Nj / totalCount) * suma) + ((1 - alpha) * (numClasses * lambda / Nj));
     }
 
     /**
      * Create the first intervals with the set of boundary points.
+     *
      * @param att Attribute index
      * @param idx Vector of indexes sorted by value.
      * @return A tree of tuples (boundary point, interval associated).
      */
-    private TreeMap <Float, Interval> initIntervals(int att, Integer[] idx) {
+    private TreeMap<Float, Interval> initIntervals(int att, Integer[] idx) {
 
-        TreeMap <Float, Interval> intervals = new TreeMap<Float, Interval> ();
-        LinkedList<Tuple<Float, int[]>> distinctPoints = new LinkedList<Tuple<Float, int[]>>();
+        TreeMap<Float, Interval> intervals = new TreeMap<>();
+        LinkedList<Tuple<Float, int[]>> distinctPoints = new LinkedList<>();
         float valueAnt = getInstanceValue(elemQ[att].get(idx[0]).x);
         int classAnt = elemQ[att].get(idx[0]).y;
         int[] cd = new int[numClasses];
         cd[classAnt]++;
         // Compute statically the set of distinct points (boundary)
-        for(int i = 1; i < idx.length;i++) {
+        for (int i = 1; i < idx.length; i++) {
             float val = getInstanceValue(elemQ[att].get(idx[i]).x);
             int clas = elemQ[att].get(idx[i]).y;
-            if(val == valueAnt) {
+            if (val == valueAnt) {
                 cd[clas]++;
             } else {
-                distinctPoints.add(new Tuple<Float, int[]>(valueAnt, cd));
+                distinctPoints.add(new Tuple<>(valueAnt, cd));
                 cd = new int[numClasses];
                 cd[clas]++;
                 valueAnt = val;
             }
 
         }
-        distinctPoints.add(new Tuple<Float, int[]>(valueAnt, cd));
+        distinctPoints.add(new Tuple<>(valueAnt, cd));
 
         // Filter only those that are on the class boundaries
         Interval interval = new Interval(getLabel(att));
@@ -607,7 +552,7 @@ public class LOFDiscretizer
 
         for (int i = 1; i < distinctPoints.size(); i++) {
             Tuple<Float, int[]> t2 = distinctPoints.get(i);
-            if(isBoundary(t1.y, t2.y)){
+            if (isBoundary(t1.y, t2.y)) {
                 // Compute the criterion value and add them to the pool
                 interval.updateCriterion(); // Important!
                 intervals.put(t1.x, interval);
@@ -624,11 +569,11 @@ public class LOFDiscretizer
 
     /**
      * Initialize all the variables during the first stage.
+     *
      * @param inst The first example
      */
     private void initializeLayers(LabeledVector inst) {
         m_DiscretizeCols.setUpper(inst.vector().size());
-//        numClasses = inst.numClasses();
         numAttributes = inst.vector().size();
         allIntervals = new TreeMap[numAttributes];
         m_CutPoints = new double[numAttributes][];
@@ -639,9 +584,9 @@ public class LOFDiscretizer
         classByAtt = new int[numAttributes][];
 
         for (int i = 0; i < inst.vector().size(); i++) {
-            allIntervals[i] = new TreeMap<Float, Interval>();
-            elemQ[i] = new LinkedList<Tuple<Float, Byte>>();
-            labelsToUse[i] = new LinkedList<Integer>();
+            allIntervals[i] = new TreeMap<>();
+            elemQ[i] = new LinkedList<>();
+            labelsToUse[i] = new LinkedList<>();
             contLabels[i] = maxLabels;
             classByAtt[i] = new int[numClasses];
             for (int j = 1; j < maxLabels + 1; j++) {
@@ -650,25 +595,11 @@ public class LOFDiscretizer
         }
     }
 
-    /**
-     * Transform a point by rounding it according to the number of decimals
-     * defined as input parameter.
-     * @param value Value to transform
-     * @return Rounded value.
-     */
-    private float getInstanceValue(double value) {
-        if(decimals > 0) {
-            double mult = Math.pow(10, decimals);
-            return (float) (Math.round(value * mult) / mult);
-        }
-        return (float) value;
-    }
-
     @Override
     public Float condProbGivenClass(int attI, double rVal, int dVal, int classVal, float classProb) {
         // TODO Auto-generated method stub
         float joint = getAttValGivenClass(attI, rVal, dVal, classVal);
-        if(joint > 0) {
+        if (joint > 0) {
             joint /= Utils.sum(classByAtt[attI]);
             return joint / classByAtt[attI][classVal];
         }
@@ -685,21 +616,74 @@ public class LOFDiscretizer
     public int getAttValGivenClass(int attI, double rVal, int dVal, int classVal) {
         Map.Entry<Float, Interval> centralE = allIntervals[attI]
                 .ceilingEntry(getInstanceValue(rVal));
-        if(centralE != null) {
+        if (centralE != null) {
             return centralE.getValue().cd[classVal];
         }
         return 0;
     }
 
     /**
+     * Update the discretization scheme.
+     *
+     * @param instance an incoming instance.
+     */
+    public void updateEvaluator(LabeledVector instance) {
+        int numAttributes = instance.vector().size();
+
+        if (m_CutPoints == null) {
+            initializeLayers(instance);
+        }
+
+        totalCount++;
+        // Count number of elements per class
+        for (int i = 0; i < numAttributes; i++) {
+            classByAtt[i][(int) instance.label()]++;
+        }
+
+        // If there are enough instances to initialize cut points, do it!
+        if (totalCount >= initTh) {
+            if (m_Init) {
+                for (int i = 0; i < numAttributes; i++) {
+                    insertExample(i, instance);
+                }
+                addExampleToQueue(instance);
+            } else {
+                addExampleToQueue(instance);
+                batchFusinter(instance);
+
+                m_Init = true;
+            }
+        } else {
+            addExampleToQueue(instance);
+        }
+    }
+
+    /**
+     * Apply the discretization scheme to a new incoming instance.
+     * The discretization scheme must be generated previously.
+     *
+     * @param inst a new instance.
+     * @return A new instance discretized.
+     */
+    public LabeledVector applyDiscretization(LabeledVector inst) {
+        updateEvaluator(inst);
+        if (m_Init) {
+            discretizeLoop(inst);
+            return convertInstance(inst);
+        }
+        return inst;
+    }
+
+    /**
      * Get a new label for an interval. It is taken from
      * the queue of labels if this is not empty. If not,
      * a new label equal to the current limit + 1 is returned.
+     *
      * @param att Attribute index
      * @return The label value to use.
      */
-    private int getLabel(int att){
-        if(labelsToUse[att].isEmpty())
+    private int getLabel(int att) {
+        if (labelsToUse[att].isEmpty())
             return ++contLabels[att];
         return labelsToUse[att].poll();
     }
@@ -713,7 +697,7 @@ public class LOFDiscretizer
          */
         int label;
         float end;
-        int [] cd;
+        int[] cd;
         TreeMap<Float, int[]> histogram;
         float crit;
 
@@ -724,7 +708,7 @@ public class LOFDiscretizer
         public Interval(int _label) {
             label = _label;
             end = -1;
-            histogram = new TreeMap<Float, int[]>();
+            histogram = new TreeMap<>();
             cd = new int[numClasses];
             crit = Float.MIN_VALUE;
         }
@@ -733,6 +717,7 @@ public class LOFDiscretizer
          * <p>
          * Compute the interval ratios.
          * </p>
+         *
          * @param _attribute
          * @param []_values
          * @param _begin
@@ -741,7 +726,7 @@ public class LOFDiscretizer
         public Interval(int _label, float _end, int _class) {
             label = _label;
             end = _end;
-            histogram = new TreeMap<Float, int[]>();
+            histogram = new TreeMap<>();
             cd = new int[numClasses];
             cd[_class] = 1;
             histogram.put(_end, cd.clone());
@@ -754,13 +739,13 @@ public class LOFDiscretizer
             end = other.end;
             cd = other.cd.clone();
             crit = other.crit;
-            histogram = new TreeMap<Float, int[]>();
+            histogram = new TreeMap<>();
             histogram.putAll(other.histogram);
         }
 
-        public void addPoint(int att, float value, int cls){
+        public void addPoint(int att, float value, int cls) {
             int[] pd = histogram.get(value);
-            if(pd != null) {
+            if (pd != null) {
                 pd[cls]++;
             } else {
                 pd = new int[cd.length];
@@ -769,13 +754,17 @@ public class LOFDiscretizer
             }
             // Update values
             cd[cls]++;
-            if(value > end)
+            if (value > end)
                 end = value;
         }
 
-        public void addPoint(float value, int cd[]){
+        public void addPoint(Tuple<Float, int[]> point) {
+            addPoint(point.x, point.y);
+        }
+
+        public void addPoint(float value, int cd[]) {
             int[] prevd = histogram.get(value);
-            if(prevd == null) {
+            if (prevd == null) {
                 prevd = new int[numClasses];
             }
 
@@ -787,18 +776,14 @@ public class LOFDiscretizer
                 this.cd[i] += cd[i];
             }
 
-            if(value > end)
+            if (value > end)
                 end = value;
-        }
-
-        public void addPoint(Tuple<Float, int[]> point){
-            addPoint(point.x, point.y);
         }
 
         public void removePoint(int att, float value, int cls) {
             int[] pd = histogram.get(value);
-            if(pd != null) {
-                if(pd[cls] > 0) {
+            if (pd != null) {
+                if (pd[cls] > 0) {
                     pd[cls]--;
                     cd[cls]--;
                 } else {
@@ -806,13 +791,13 @@ public class LOFDiscretizer
                 }
                 boolean delete = true;
                 // If all values are equal to zero, remove the point from the map
-                for (int i = 0; i < pd.length; i++) {
-                    if(pd[i] > 0){
+                for (int aPd : pd) {
+                    if (aPd > 0) {
                         delete = false;
                         break;
                     }
                 }
-                if(delete){ // We keep intervals with at least one point
+                if (delete) { // We keep intervals with at least one point
                     histogram.remove(value);
                 }
             } else {
@@ -820,30 +805,30 @@ public class LOFDiscretizer
                 System.err.println("Point not found in the given range.");
             }
             // Find a new maximum if the point removed is the maximum
-            if(value == end) {
+            if (value == end) {
                 Float newend = histogram.floorKey(value); // get the new maximum
-                if(newend != null)
+                if (newend != null)
                     end = newend;
             }
         }
 
         public Interval splitInterval(int att, float value) {
 
-            TreeMap<Float, int[]> nHist = new TreeMap<Float, int[]>();
+            TreeMap<Float, int[]> nHist = new TreeMap<>();
             int[] nCd = new int[cd.length];
 
             for (Iterator<Entry<Float, int[]>> iterator =
-                 histogram.tailMap(value, false).entrySet().iterator(); iterator.hasNext();) {
-                Entry<Float, int[]> entry = (Entry) iterator.next();
+                 histogram.tailMap(value, false).entrySet().iterator(); iterator.hasNext(); ) {
+                Entry<Float, int[]> entry = iterator.next();
                 nHist.put(entry.getKey(), entry.getValue());
-                for(int i = 0; i < entry.getValue().length; i++){
+                for (int i = 0; i < entry.getValue().length; i++) {
                     nCd[i] += entry.getValue()[i];
                     cd[i] -= entry.getValue()[i];
                 }
                 iterator.remove();
             }
 
-            if(nHist.isEmpty())
+            if (nHist.isEmpty())
                 return null;
 
             /** New interval (which lays at the right of the cut point) **/
@@ -854,7 +839,7 @@ public class LOFDiscretizer
             }
             // Label management
             Interval nInterval = new Interval();
-            if(s1 > s2){
+            if (s1 > s2) {
                 nInterval.label = getLabel(att);
             } else {
                 nInterval.label = this.label;
@@ -864,14 +849,18 @@ public class LOFDiscretizer
             nInterval.histogram = nHist;
             nInterval.end = this.end;
             nInterval.updateCriterion();
-            /** Old interval (which lays at the left of the cut point) **/
+            /* Old interval (which lays at the left of the cut point) **/
             this.end = value;
             updateCriterion();
 
             return nInterval;
         }
 
-        public int mergeIntervals(Interval interv2){
+        public void updateCriterion() {
+            this.crit = evalInterval(cd);
+        }
+
+        public int mergeIntervals(Interval interv2) {
             // The interval with less elements lose its label
             int s1 = 0, s2 = 0;
             for (int i = 0; i < cd.length; i++) {
@@ -880,7 +869,7 @@ public class LOFDiscretizer
             }
 
             int oldlab = interv2.label;
-            if(s1 < s2) {
+            if (s1 < s2) {
                 oldlab = this.label;
                 this.label = interv2.label;
             }
@@ -892,11 +881,11 @@ public class LOFDiscretizer
             for (int i = 0; i < cd.length; i++) {
                 cd[i] += interv2.cd[i];
             }
-            for (Iterator iterator = interv2.histogram.entrySet().iterator(); iterator.hasNext();) {
-                Entry<Float, int[]> entry = (Entry) iterator.next();
+            for (Entry<Float, int[]> floatEntry : interv2.histogram.entrySet()) {
+                Entry<Float, int[]> entry = (Entry) floatEntry;
                 int[] v = histogram.get(entry.getKey());
-                if(v != null) {
-                    for (int i = 0; i < v.length; i++){
+                if (v != null) {
+                    for (int i = 0; i < v.length; i++) {
                         v[i] += entry.getValue()[i];
                     }
                 } else {
@@ -916,16 +905,13 @@ public class LOFDiscretizer
             this.crit = crit;
         }
 
-        public void updateCriterion(){
-            this.crit = evalInterval(cd);
-        }
-
     }
 
 
     public class Tuple<X, Y> {
         public final X x;
         public final Y y;
+
         public Tuple(X x, Y y) {
             this.x = x;
             this.y = y;
