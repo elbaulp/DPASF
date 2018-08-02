@@ -22,7 +22,15 @@ import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 
 /**
- * Incremental Discretization Algorithm
+ * Partition Incremental Discretization (PiD)
+ *
+ * For more information, see:<br/>
+ *
+ * João Gama and Carlos Pinto. 2006. Discretization from data streams: applications to histograms and data mining.
+ * In Proceedings of the 2006 ACM symposium on Applied computing (SAC '06). ACM, New York, NY, USA, 662-667.
+ *
+ * DOI : http://dx.doi.org/10.1145/1141277.1141429
+ *
  */
 class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 

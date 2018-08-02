@@ -7,7 +7,7 @@ import com.elbauldelprogramador.pojo.ElecNormNew
 import moa.streams.ArffFileStream
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.api.scala.{ ExecutionEnvironment, _ }
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 
@@ -30,12 +30,11 @@ class LOFDiscretizerTransformerSpec extends BddSpec with Serializable {
   private val ofs = LOFDiscretizerTransformer()
     .setInitTh(1)
 
-
   "A Information Gain FS on TennnisDS" - {
     "When computing its Entropy" - {
       "Should return entropy H(X) equal to 0.9402859586706309" in {
 
-        val discretized = ofs transform(dataSet)
+        val discretized = ofs transform (dataSet)
         discretized.print
       }
     }

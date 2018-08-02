@@ -19,11 +19,10 @@ package com.elbauldelprogramador.discretizers
 
 import com.elbauldelprogramador.datastructures.IntervalHeapWrapper
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
+import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
+import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 import org.slf4j.LoggerFactory
-
 
 /**
  * Incremental Discretization Algorithm
@@ -120,10 +119,9 @@ object IDADiscretizerTransformer {
 
       val bins = resultingParameters(Bins)
 
-
       // Thanks to https://stackoverflow.com/a/51497661/1612432
       val nAttrs = input
-         // only forward first vector of each partition
+        // only forward first vector of each partition
         .mapPartition(in => if (in.hasNext) Seq(in.next) else Seq())
         // move all remaining vectors to a single partition, compute size of the first and forward it
         .mapPartition(in => if (in.hasNext) Seq(in.next.vector.size) else Seq())

@@ -17,8 +17,8 @@
 package com.elbauldelprogramador.discretizers
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
-import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
+import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
+import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 import org.slf4j.LoggerFactory
 
 /**
@@ -38,72 +38,72 @@ class LOFDiscretizerTransformer extends Transformer[LOFDiscretizerTransformer] {
   import LOFDiscretizerTransformer._
 
   /**
-    * Sets the Alpha parameter
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
+   * Sets the Alpha parameter
+   *
+   * @return [[LOFDiscretizerTransformer]]
+   */
   def setAlpha(alpha: Double): LOFDiscretizerTransformer = {
-    parameters add(Alpha, alpha)
+    parameters add (Alpha, alpha)
     this
   }
 
   /**
-    * Sets the lambda parameter
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
+   * Sets the lambda parameter
+   *
+   * @return [[LOFDiscretizerTransformer]]
+   */
   def setLambda(lambda: Double): LOFDiscretizerTransformer = {
-    parameters add(Lambda, lambda)
+    parameters add (Lambda, lambda)
     this
   }
 
   /**
-    * Sets the number of instances before initializing intervals
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
+   * Sets the number of instances before initializing intervals
+   *
+   * @return [[LOFDiscretizerTransformer]]
+   */
   def setInitTh(n: Int): LOFDiscretizerTransformer = {
-    parameters add(InitTH, n)
+    parameters add (InitTH, n)
     this
   }
 
   /**
-    * Sets the maximum number of elements in interval histograms
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
+   * Sets the maximum number of elements in interval histograms
+   *
+   * @return [[LOFDiscretizerTransformer]]
+   */
   def setMaxHist(n: Int): LOFDiscretizerTransformer = {
-    parameters add(MaxHist, n)
+    parameters add (MaxHist, n)
     this
   }
 
   /**
-    * Sets the Decimals parameter
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
+   * Sets the Decimals parameter
+   *
+   * @return [[LOFDiscretizerTransformer]]
+   */
   def setDecimals(decimals: Int): LOFDiscretizerTransformer = {
-    parameters add(Decimals, decimals)
+    parameters add (Decimals, decimals)
     this
   }
 
   /**
-    * Sets maximun number of labels parameter
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
+   * Sets maximun number of labels parameter
+   *
+   * @return [[LOFDiscretizerTransformer]]
+   */
   def setMaxLabels(maxLabels: Int): LOFDiscretizerTransformer = {
-    parameters add(MaxLabels, maxLabels)
+    parameters add (MaxLabels, maxLabels)
     this
   }
 
   /**
-    * Sets if LOFD should provide Likelihood values
-    *
-    * @return [[LOFDiscretizerTransformer]]
-    */
+   * Sets if LOFD should provide Likelihood values
+   *
+   * @return [[LOFDiscretizerTransformer]]
+   */
   def setProvideProb(probs: Boolean): LOFDiscretizerTransformer = {
-    parameters add(ProvideProb, probs)
+    parameters add (ProvideProb, probs)
     this
   }
 }
@@ -147,8 +147,8 @@ object LOFDiscretizerTransformer {
   // ========================================== Operations =========================================
 
   /**
-    * [[LOFDiscretizerTransformer]] does not need a fitting phase
-    */
+   * [[LOFDiscretizerTransformer]] does not need a fitting phase
+   */
   implicit val fitNoOp = new FitOperation[LOFDiscretizerTransformer, LabeledVector] {
     override def fit(
       instance: LOFDiscretizerTransformer,
@@ -177,13 +177,14 @@ object LOFDiscretizerTransformer {
           .count
           .toInt
 
-        val lofd = new LOFDiscretizer(maxHist,
+        val lofd = new LOFDiscretizer(
+          maxHist,
           initTh,
           decimals,
           maxLabels,
           nClasses)
 
-        input.map (lofd applyDiscretization _)
+        input.map(lofd applyDiscretization _)
       }
     }
   }

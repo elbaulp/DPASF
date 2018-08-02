@@ -12,7 +12,7 @@ case class ElecNormNew(
   var transfer: Double,
   var label: Double) extends Serializable {
 
-//  def this() = {
-//    this(0, 0, 0, 0, 0, 0, 0, 0, "")
-//  }
+  //  def this() = {
+  //    this(0, 0, 0, 0, 0, 0, 0, 0, "")
+  //  }
 }
