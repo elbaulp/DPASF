@@ -46,7 +46,6 @@ class IDADiscretizerSpec extends BddSpec with Serializable {
       "Should be computed correctly" in {
         val ida = IDADiscretizerTransformer()
           .setBins(5)
-          .setNumAttr(4)
         val discretized = ida transform dataSet
         val discretized2 = ida.discretizeWith(dataSet)
 

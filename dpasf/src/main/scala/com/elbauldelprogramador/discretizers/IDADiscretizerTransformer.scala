@@ -48,17 +48,6 @@ class IDADiscretizerTransformer extends Transformer[IDADiscretizerTransformer] {
   }
 
   /**
-   * Sets the number of attributes to discretize.
-   *
-   * @param nattr number of attributes.
-   * @return itself.
-   */
-  def setNumAttr(nattr: Int): IDADiscretizerTransformer = {
-    parameters add (Attrs, nattr)
-    this
-  }
-
-  /**
    * Sets the sample size to maintain.
    *
    * @param sSize Sample size to use.
@@ -99,10 +88,6 @@ object IDADiscretizerTransformer {
     val defaultValue: Option[Int] = Some(5)
   }
 
-  private[IDADiscretizerTransformer] case object Attrs extends Parameter[Int] {
-    val defaultValue: Option[Int] = None
-  }
-
   private[IDADiscretizerTransformer] case object SampleSize extends Parameter[Int] {
     val defaultValue: Option[Int] = Some(1000)
   }
@@ -134,7 +119,17 @@ object IDADiscretizerTransformer {
       val resultingParameters = instance.parameters ++ transformParameters
 
       val bins = resultingParameters(Bins)
-      val nAttrs = resultingParameters(Attrs)
+
+
+      // Thanks to https://stackoverflow.com/a/51497661/1612432
+      val nAttrs = input
+         // only forward first vector of each partition
+        .mapPartition(in => if (in.hasNext) Seq(in.next) else Seq())
+        // move all remaining vectors to a single partition, compute size of the first and forward it
+        .mapPartition(in => if (in.hasNext) Seq(in.next.vector.size) else Seq())
+        .setParallelism(1)
+        .collect
+        .head
 
       val v = Vector.tabulate(nAttrs)(i => new IntervalHeapWrapper(bins, i))
 
