@@ -20,7 +20,7 @@ package com.elbauldelprogramador.discretizers
 import com.elbauldelprogramador.utils.FlinkUtils
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
-import org.apache.flink.ml.math.DenseMatrix
+import org.apache.flink.ml.math.{ DenseMatrix, DenseVector }
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 
 /**
@@ -38,7 +38,9 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
   import PIDiscretizerTransformer._
 
-  private[this] var matrixDistribution: Option[DataSet[DenseMatrix]] = None
+  private[this] var matrixDistributionL1: Option[DataSet[DenseMatrix]] = None
+  private[this] var matrixDistributionL2: Option[DataSet[DenseMatrix]] = None
+  private[this] var cutpoints: Option[DataSet[DenseVector]] = None
 
   // TODO docs
   def setBins(l2Updates: Int): PIDiscretizerTransformer = {
@@ -125,9 +127,9 @@ object PIDiscretizerTransformer {
       val initialElems = resultingParameters(InitialElements)
       val nAttrs = FlinkUtils.numAttrs(input)
 
-      //      input map { x =>
-      //        ???
-      //      }
+      val r = input map { x =>
+        ???
+      }
     }
   }
 
@@ -138,6 +140,8 @@ object PIDiscretizerTransformer {
       transformParameters: ParameterMap,
       input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
       val resultingParameters = instance.parameters ++ transformParameters
+
+
 
       ???
     }
