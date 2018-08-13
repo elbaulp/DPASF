@@ -17,11 +17,12 @@
 
 package com.elbauldelprogramador.discretizers
 
+import com.elbauldelprogramador.datastructures.Histogram
 import com.elbauldelprogramador.utils.FlinkUtils
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
-import org.apache.flink.ml.math.{ DenseMatrix, DenseVector }
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
+import org.slf4j.LoggerFactory
 
 /**
  * Partition Incremental Discretization (PiD)
@@ -38,18 +39,17 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
   import PIDiscretizerTransformer._
 
-  private[this] var matrixDistributionL1: Option[DataSet[DenseMatrix]] = None
-  private[this] var matrixDistributionL2: Option[DataSet[DenseMatrix]] = None
-  private[this] var cutpoints: Option[DataSet[DenseVector]] = None
+  private[this] var metricsOption: Option[DataSet[Histogram]] = None
+  private[PIDiscretizerTransformer] lazy val step = (parameters(Max) - parameters(Min)) / parameters(L1InitialBins).toDouble
 
   // TODO docs
-  def setBins(l2Updates: Int): PIDiscretizerTransformer = {
+  def setUpdateExamples(l2Updates: Int): PIDiscretizerTransformer = {
     parameters add (L2UpdateExamples, l2Updates)
     this
   }
 
   // TODO docs
-  def setL2Bins(bins: Int): PIDiscretizerTransformer = {
+  def setL1Bins(bins: Int): PIDiscretizerTransformer = {
     parameters add (L1InitialBins, bins)
     this
   }
@@ -80,6 +80,8 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 }
 
 object PIDiscretizerTransformer {
+
+  private[this] val log = LoggerFactory.getLogger(this.getClass)
 
   // ========================================== Parameters =========================================
   private[PIDiscretizerTransformer] case object L2UpdateExamples extends Parameter[Int] {
@@ -127,9 +129,15 @@ object PIDiscretizerTransformer {
       val initialElems = resultingParameters(InitialElements)
       val nAttrs = FlinkUtils.numAttrs(input)
 
-      val r = input map { x =>
-        ???
-      }
+      val r = input.map { x =>
+        (x, Histogram(nAttrs, l1InitialBins, min, instance.step))
+      }.reduce { (m1, m2) =>
+        // Update Layer 1
+        val updated = updateL1(m1._1, m1._2)(instance)
+
+        (m2._1, updated)
+      }.map(_._2)
+      log.info(s"H: ${r.print}")
     }
   }
 
@@ -140,10 +148,31 @@ object PIDiscretizerTransformer {
       transformParameters: ParameterMap,
       input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
       val resultingParameters = instance.parameters ++ transformParameters
+      input.print
 
+      input
+    }
+  }
 
-
-      ???
+  private[this] def updateL1(lv: LabeledVector, h: Histogram)(instance: PIDiscretizerTransformer): Histogram = {
+    lv.vector.foldLeft(h) {
+      case (z, (i, x)) =>
+        val k =
+          if (x <= z.cuts(i, 0))
+            0
+          else if (x > z.cuts(i, z.nCols - 1))
+            z.nCols - 1 // TODO, Watch for split process
+          else {
+            // TODO, convert to functional
+            var k = Math.ceil(x - z.cuts(i, 0) / instance.step).toInt
+            while (x <= z.cuts(i, k - 1)) k -= 1
+            while (x > z.cuts(i, k)) k += 1
+            k
+          }
+        z.updateCounts(i, k, z.counts(i, k) + 1)
+        z.updateClassDistrib(i, k, lv.label.toInt)
+        z
+      // Launch the Split process
     }
   }
 }
