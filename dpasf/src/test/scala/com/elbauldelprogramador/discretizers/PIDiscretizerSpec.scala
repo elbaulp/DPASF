@@ -18,14 +18,14 @@
 package com.elbauldelprogramador.discretizers
 
 import com.elbauldelprogramador.BddSpec
-import com.elbauldelprogramador.pojo.{ElecNormNew, Iris}
+import com.elbauldelprogramador.pojo.{ ElecNormNew, Iris }
 import java.util.concurrent.TimeUnit
 
-import com.elbauldelprogramador.discretizers.fixtures.{env, getClass}
+import com.elbauldelprogramador.discretizers.fixtures.{ env, getClass }
 import moa.streams.ArffFileStream
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.api.scala.{ ExecutionEnvironment, _ }
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.preprocessing.MinMaxScaler
@@ -39,12 +39,12 @@ class PIDiscretizerTransformerSpec extends BddSpec with Serializable {
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
 
-//  private val data = env.readCsvFile[Iris](getClass.getResource("/elecNormNew.dat").getPath)
-//  private[discretizers] val dataSet = data map { tuple =>
-//    val list = tuple.productIterator.toList
-//    val numList = list map (_.asInstanceOf[Double])
-//    LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
-//  }
+  //  private val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
+  //  private[discretizers] val dataSet = data map { tuple =>
+  //    val list = tuple.productIterator.toList
+  //    val numList = list map (_.asInstanceOf[Double])
+  //    LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
+  //  }
 
   val data = env.readCsvFile[ElecNormNew](getClass.getResource("/elecNormNew.arff").getPath)
   val dataSet = data map { tuple =>
@@ -54,6 +54,7 @@ class PIDiscretizerTransformerSpec extends BddSpec with Serializable {
   }
 
   private val pid = PIDiscretizerTransformer()
+    .setAlpha(.10)
   private val scaler = MinMaxScaler()
 
   "A PIDiscretizer on ElecNormNew" - {

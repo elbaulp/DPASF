@@ -18,6 +18,7 @@
 package com.elbauldelprogramador.datastructures
 
 import org.apache.flink.ml.math.DenseMatrix
+import scala.collection.mutable.ArrayBuffer
 
 // TODO: DOC
 // TODO: TEST
@@ -26,38 +27,60 @@ case class Histogram(
   nCols: Int,
   min: Int,
   step: Double,
-  private val countMatrix: DenseMatrix,
-  private val cutMatrix: DenseMatrix,
-  private val classDistribMatrix: Array[Array[Map[Int, Double]]])
+  private val countMatrix: Array[ArrayBuffer[Double]],
+  private val cutMatrix: Array[ArrayBuffer[Double]],
+  private val classDistribMatrix: Array[ArrayBuffer[Map[Int, Double]]])
   extends Serializable {
 
-  import Histogram._
-
   def updateCounts(row: Int, col: Int, value: Double): Unit =
-    countMatrix update (row, col, value)
+    countMatrix(row).update(col, value)
   def updateCuts(row: Int, col: Int, value: Double): Unit =
-    cutMatrix update (row, col, value)
+    cutMatrix(row).update(col, value)
+  def updateClassDistrib(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
+    classDistribMatrix(row).update(col, newDist)
   def updateClassDistrib(row: Int, col: Int, label: Int): Unit = {
     val currClassDistrib = classDistribMatrix(row)(col).getOrElse(label, 0.0) + 1
     val newClassDistrib = classDistribMatrix(row)(col) + (label -> currClassDistrib)
     classDistribMatrix(row).update(col, newClassDistrib)
   }
 
-  def counts(row: Int, col: Int): Double = countMatrix apply (row, col)
-  def cuts(row: Int, col: Int): Double = cutMatrix apply (row, col)
-  def classDistrib(row: Int, col: Int): Double = ???
+  def addCounts(row: Int, col: Int, value: Double): Unit =
+    countMatrix(row).insert(col, value)
+  def addCuts(row: Int, col: Int, value: Double): Unit =
+    cutMatrix(row).insert(col, value)
+  def addClassDistrib(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
+    classDistribMatrix(row).insert(col, newDist)
 
-  def ++(h: Histogram): Histogram = {
-    val newCuts = DenseMatrix(nRows, nCols, (h.cutMatrix.data, cutMatrix.data).zipped.map(_ + _))
-    val newCounts = DenseMatrix(nRows, nCols, (h.countMatrix.data, countMatrix.data).zipped.map(_ + _))
-    val newClassDistrib = (h.classDistribMatrix, classDistribMatrix).zipped.map { (a, b) =>
-      (a, b).zipped.map { (x, y) =>
-        val merged = x.toSeq ++ y.toSeq
-        merged.groupBy(_._1).mapValues(_.map(_._2).sum)
-      }
-    }
-    apply(min, step, newCounts, newCuts, newClassDistrib)
-  }
+  def prependCut(i: Int, value: Double): Unit =
+    cutMatrix(i).prepend(value)
+  def prependCounts(i: Int, value: Double): Unit =
+    countMatrix(i).prepend(value)
+  def prependClassDist(i: Int, newDist: Map[Int, Double]): Unit =
+    classDistribMatrix(i).prepend(newDist)
+  def appendCut(i: Int, value: Double): Unit =
+    cutMatrix(i).append(value)
+  def appendCounts(i: Int, value: Double): Unit =
+    countMatrix(i).append(value)
+  def appendClassDist(i: Int, newDist: Map[Int, Double]): Unit =
+    classDistribMatrix(i).append(newDist)
+
+  def counts(row: Int, col: Int): Double = countMatrix(row)(col)
+  def cuts(row: Int, col: Int): Double = cutMatrix(row)(col)
+  def classDistrib(row: Int, col: Int): Map[Int, Double] = classDistribMatrix(row)(col)
+
+  //  def ++(h: Histogram): Histogram = {
+  //    val newCuts = DenseMatrix(nRows, nCols, (h.cutMatrix.data, cutMatrix.data).zipped.map(_ + _))
+  //    val newCounts = DenseMatrix(nRows, nCols, (h.countMatrix.data, countMatrix.data).zipped.map(_ + _))
+  //    val newClassDistrib = (h.classDistribMatrix, classDistribMatrix).zipped.map { (a, b) =>
+  //      (a, b).zipped.map { (x, y) =>
+  //        val merged = x.toSeq ++ y.toSeq
+  //        merged.groupBy(_._1).mapValues(_.map(_._2).sum)
+  //      }
+  //    }
+  //    apply(min, step, newCounts, newCuts, newClassDistrib)
+  //  }
+
+  def nColumns(i: Int) = cutMatrix(i).size
 
   override def toString: String = {
 
@@ -84,23 +107,7 @@ object Histogram {
       nCols,
       min,
       step,
-      DenseMatrix.zeros(nRows, nCols),
-      DenseMatrix(nRows, nCols,
-        Array.tabulate(nRows, nCols)((_, j) => min + j.toDouble % nCols * step).transpose.flatten),
-      Array.fill(nRows, nCols)(Map.empty[Int, Double]))
-
-  def apply(
-    min: Int,
-    step: Double,
-    counts: DenseMatrix,
-    cutpoints: DenseMatrix,
-    classDistrib: Array[Array[Map[Int, Double]]]): Histogram =
-    Histogram(
-      counts.numRows,
-      counts.numCols,
-      min,
-      step,
-      counts,
-      cutpoints,
-      classDistrib)
+      Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(0)),
+      Array.fill(nRows)(ArrayBuffer.tabulate(nCols + 1)(min + _.toDouble * step)),
+      Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(Map.empty[Int, Double])))
 }

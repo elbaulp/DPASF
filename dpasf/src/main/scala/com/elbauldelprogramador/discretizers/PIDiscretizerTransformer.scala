@@ -61,7 +61,7 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
   }
 
   // TODO docs
-  def setNumAttr(alpha: Double): PIDiscretizerTransformer = {
+  def setAlpha(alpha: Double): PIDiscretizerTransformer = {
     parameters add (Alpha, alpha)
     this
   }
@@ -130,12 +130,12 @@ object PIDiscretizerTransformer {
       val nAttrs = FlinkUtils.numAttrs(input)
 
       val r = input.map { x =>
-        (x, Histogram(nAttrs, l1InitialBins, min, instance.step))
+        (x, Histogram(nAttrs, l1InitialBins, min, instance.step), 1)
       }.reduce { (m1, m2) =>
         // Update Layer 1
-        val updated = updateL1(m1._1, m1._2)(instance)
+        val updated = updateL1(m1._1, m1._2, instance.step, initialElems, alpha, m1._3)
 
-        (m2._1, updated)
+        (m2._1, updated, m1._3 + 1)
       }.map(_._2)
       log.info(s"H: ${r.print}")
     }
@@ -154,25 +154,58 @@ object PIDiscretizerTransformer {
     }
   }
 
-  private[this] def updateL1(lv: LabeledVector, h: Histogram)(instance: PIDiscretizerTransformer): Histogram = {
+  private[this] def updateL1(
+    lv: LabeledVector,
+    h: Histogram,
+    step: Double,
+    initElems: Int,
+    alpha: Double,
+    totalCount: Int): Histogram = {
     lv.vector.foldLeft(h) {
       case (z, (i, x)) =>
         val k =
           if (x <= z.cuts(i, 0))
             0
-          else if (x > z.cuts(i, z.nCols - 1))
-            z.nCols - 1 // TODO, Watch for split process
+          else if (x > z.cuts(i, z.nColumns(i) - 1))
+            z.nColumns(i) - 1 // TODO, Watch for split process
           else {
             // TODO, convert to functional
-            var k = Math.ceil(x - z.cuts(i, 0) / instance.step).toInt
+            var k = Math.ceil(x - z.cuts(i, 0) / step).toInt
             while (x <= z.cuts(i, k - 1)) k -= 1
             while (x > z.cuts(i, k)) k += 1
             k
           }
         z.updateCounts(i, k, z.counts(i, k) + 1)
         z.updateClassDistrib(i, k, lv.label.toInt)
+
+        // Launch the Split process
+        val p = z.counts(i, k) / totalCount
+
+        if (totalCount > initElems &&
+          p > alpha) {
+          val middle = h.counts(i, k) / 2d
+          h.updateCounts(i, k, middle)
+          val classDist = h.classDistrib(i, k)
+          val halfDist = classDist.mapValues(_ / 2d)
+          h.updateClassDistrib(i, k, halfDist)
+
+          if (k == 0) {
+            h.prependCut(i, h.cuts(i, 0) - step)
+            h.prependCounts(i, middle)
+            h.prependClassDist(i, halfDist)
+          } else if (k >= h.nColumns(i) - 1) {
+            val lastBreak = h.nColumns(i) - 1
+            h.appendCut(i, h.cuts(i, lastBreak) + step)
+            h.appendCounts(i, middle)
+            h.appendClassDist(i, halfDist)
+          } else {
+            val splitted = (h.cuts(i, k) + h.cuts(i, k + 1)) / 2d
+            h.addCuts(i, k + 1, splitted)
+            h.addCounts(i, k + 1, middle)
+            h.addClassDistrib(i, k, halfDist)
+          }
+        }
         z
-      // Launch the Split process
     }
   }
 }
