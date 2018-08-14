@@ -4,10 +4,9 @@ import java.util.concurrent.TimeUnit
 
 import com.elbauldelprogramador.BddSpec
 import com.elbauldelprogramador.pojo.ElecNormNew
-import moa.streams.ArffFileStream
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala.{ ExecutionEnvironment, _ }
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 

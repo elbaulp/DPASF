@@ -16,15 +16,13 @@ package com.elbauldelprogramador.featureselection
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import com.elbauldelprogramador.BddSpec
 import java.util.concurrent.TimeUnit
 
+import com.elbauldelprogramador.BddSpec
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.MLUtils
-import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.DenseVector
 
 class OFSGDTransformerSpec extends BddSpec with Serializable {
 

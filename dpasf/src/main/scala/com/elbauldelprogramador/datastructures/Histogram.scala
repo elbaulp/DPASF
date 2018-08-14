@@ -17,7 +17,6 @@
 
 package com.elbauldelprogramador.datastructures
 
-import org.apache.flink.ml.math.DenseMatrix
 import scala.collection.mutable.ArrayBuffer
 
 // TODO: DOC

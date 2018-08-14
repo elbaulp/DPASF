@@ -17,7 +17,6 @@
 
 package com.elbauldelprogramador.utils
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
 
