@@ -20,8 +20,8 @@ package com.elbauldelprogramador.discretizers
 import com.elbauldelprogramador.datastructures.Histogram
 import com.elbauldelprogramador.utils.FlinkUtils
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
-import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
+import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
+import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 import org.slf4j.LoggerFactory
 
 /**
@@ -39,7 +39,7 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
   import PIDiscretizerTransformer._
 
-  private[this] var metricsOption: Option[DataSet[Histogram]] = None
+  private[PIDiscretizerTransformer] var metricsOption: Option[DataSet[Histogram]] = None
   private[PIDiscretizerTransformer] lazy val step = (parameters(Max) - parameters(Min)) / parameters(L1InitialBins).toDouble
 
   // TODO docs
@@ -129,7 +129,8 @@ object PIDiscretizerTransformer {
       val initialElems = resultingParameters(InitialElements)
       val nAttrs = FlinkUtils.numAttrs(input)
 
-      val r = input.map { x =>
+      val metric = input.map { x =>
+        // (instance, histrogram totalCount)
         (x, Histogram(nAttrs, l1InitialBins, min, instance.step), 1)
       }.reduce { (m1, m2) =>
         // Update Layer 1
@@ -137,7 +138,10 @@ object PIDiscretizerTransformer {
 
         (m2._1, updated, m1._3 + 1)
       }.map(_._2)
-      log.info(s"H: ${r.print}")
+
+      instance.metricsOption = Some(metric)
+
+      log.info(s"H: ${metric.print}")
     }
   }
 
@@ -176,7 +180,7 @@ object PIDiscretizerTransformer {
             k
           }
         z.updateCounts(i, k, z.counts(i, k) + 1)
-        z.updateClassDistrib(i, k, lv.label.toInt)
+        z.updateClassDistribL1(i, k, lv.label.toInt)
 
         // Launch the Split process
         val p = z.counts(i, k) / totalCount
@@ -185,24 +189,24 @@ object PIDiscretizerTransformer {
           p > alpha) {
           val middle = h.counts(i, k) / 2d
           h.updateCounts(i, k, middle)
-          val classDist = h.classDistrib(i, k)
+          val classDist = h.classDistribL1(i, k)
           val halfDist = classDist.mapValues(_ / 2d)
-          h.updateClassDistrib(i, k, halfDist)
+          h.updateClassDistribL1(i, k, halfDist)
 
           if (k == 0) {
             h.prependCut(i, h.cuts(i, 0) - step)
             h.prependCounts(i, middle)
-            h.prependClassDist(i, halfDist)
+            h.prependClassDistribL1(i, halfDist)
           } else if (k >= h.nColumns(i) - 1) {
             val lastBreak = h.nColumns(i) - 1
             h.appendCut(i, h.cuts(i, lastBreak) + step)
             h.appendCounts(i, middle)
-            h.appendClassDist(i, halfDist)
+            h.appendClassDistL1(i, halfDist)
           } else {
             val splitted = (h.cuts(i, k) + h.cuts(i, k + 1)) / 2d
             h.addCuts(i, k + 1, splitted)
             h.addCounts(i, k + 1, middle)
-            h.addClassDistrib(i, k, halfDist)
+            h.addClassDistribL1(i, k, halfDist)
           }
         }
         z

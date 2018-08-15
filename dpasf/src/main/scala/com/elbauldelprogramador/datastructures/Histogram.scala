@@ -27,45 +27,71 @@ case class Histogram(
   min: Int,
   step: Double,
   private val countMatrix: Array[ArrayBuffer[Double]],
-  private val cutMatrix: Array[ArrayBuffer[Double]],
-  private val classDistribMatrix: Array[ArrayBuffer[Map[Int, Double]]])
+  private val cutMatrixL1: Array[ArrayBuffer[Double]],
+  private val distribMatrixL1: Array[ArrayBuffer[Map[Int, Double]]],
+  private val distribMatrixL2: Array[ArrayBuffer[Map[Int, Double]]],
+  private val cutMatrixL2: Array[ArrayBuffer[Double]])
   extends Serializable {
 
   def updateCounts(row: Int, col: Int, value: Double): Unit =
     countMatrix(row).update(col, value)
   def updateCuts(row: Int, col: Int, value: Double): Unit =
-    cutMatrix(row).update(col, value)
-  def updateClassDistrib(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
-    classDistribMatrix(row).update(col, newDist)
-  def updateClassDistrib(row: Int, col: Int, label: Int): Unit = {
-    val currClassDistrib = classDistribMatrix(row)(col).getOrElse(label, 0.0) + 1
-    val newClassDistrib = classDistribMatrix(row)(col) + (label -> currClassDistrib)
-    classDistribMatrix(row).update(col, newClassDistrib)
+    cutMatrixL1(row).update(col, value)
+  def updateCutsL2(row: Int, col: Int, value: Double): Unit =
+    cutMatrixL2(row).update(col, value)
+  def updateClassDistribL1(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
+    distribMatrixL1(row).update(col, newDist)
+  def updateClassDistribL1(row: Int, col: Int, label: Int): Unit = {
+    val currClassDistrib = distribMatrixL1(row)(col).getOrElse(label, 0.0) + 1
+    val newClassDistrib = distribMatrixL1(row)(col) + (label -> currClassDistrib)
+    distribMatrixL1(row).update(col, newClassDistrib)
+  }
+  def updateClassDistribL2(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
+    distribMatrixL2(row).update(col, newDist)
+  def updateClassDistribL2(row: Int, col: Int, label: Int): Unit = {
+    val currClassDistrib = distribMatrixL2(row)(col).getOrElse(label, 0.0) + 1
+    val newClassDistrib = distribMatrixL2(row)(col) + (label -> currClassDistrib)
+    distribMatrixL2(row).update(col, newClassDistrib)
   }
 
   def addCounts(row: Int, col: Int, value: Double): Unit =
     countMatrix(row).insert(col, value)
   def addCuts(row: Int, col: Int, value: Double): Unit =
-    cutMatrix(row).insert(col, value)
-  def addClassDistrib(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
-    classDistribMatrix(row).insert(col, newDist)
+    cutMatrixL1(row).insert(col, value)
+  def addCutsL2(row: Int, col: Int, value: Double): Unit =
+    cutMatrixL2(row).insert(col, value)
+  def addClassDistribL1(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
+    distribMatrixL1(row).insert(col, newDist)
+  def addClassDistribL2(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
+    distribMatrixL2(row).insert(col, newDist)
 
   def prependCut(i: Int, value: Double): Unit =
-    cutMatrix(i).prepend(value)
+    cutMatrixL1(i).prepend(value)
+  def prependCutL2(i: Int, value: Double): Unit =
+    cutMatrixL2(i).prepend(value)
   def prependCounts(i: Int, value: Double): Unit =
     countMatrix(i).prepend(value)
-  def prependClassDist(i: Int, newDist: Map[Int, Double]): Unit =
-    classDistribMatrix(i).prepend(newDist)
+  def prependClassDistribL1(i: Int, newDist: Map[Int, Double]): Unit =
+    distribMatrixL1(i).prepend(newDist)
+  def prependClassDistribL2(i: Int, newDist: Map[Int, Double]): Unit =
+    distribMatrixL2(i).prepend(newDist)
+
   def appendCut(i: Int, value: Double): Unit =
-    cutMatrix(i).append(value)
+    cutMatrixL1(i).append(value)
+  def appendCutL2(i: Int, value: Double): Unit =
+    cutMatrixL2(i).append(value)
   def appendCounts(i: Int, value: Double): Unit =
     countMatrix(i).append(value)
-  def appendClassDist(i: Int, newDist: Map[Int, Double]): Unit =
-    classDistribMatrix(i).append(newDist)
+  def appendClassDistL1(i: Int, newDist: Map[Int, Double]): Unit =
+    distribMatrixL1(i).append(newDist)
+  def appendClassDistL2(i: Int, newDist: Map[Int, Double]): Unit =
+    distribMatrixL2(i).append(newDist)
 
   def counts(row: Int, col: Int): Double = countMatrix(row)(col)
-  def cuts(row: Int, col: Int): Double = cutMatrix(row)(col)
-  def classDistrib(row: Int, col: Int): Map[Int, Double] = classDistribMatrix(row)(col)
+  def cuts(row: Int, col: Int): Double = cutMatrixL1(row)(col)
+  def cutsL2(row: Int, col: Int): Double = cutMatrixL2(row)(col)
+  def classDistribL1(row: Int, col: Int): Map[Int, Double] = distribMatrixL1(row)(col)
+  def classDistribL2(row: Int, col: Int): Map[Int, Double] = distribMatrixL2(row)(col)
 
   //  def ++(h: Histogram): Histogram = {
   //    val newCuts = DenseMatrix(nRows, nCols, (h.cutMatrix.data, cutMatrix.data).zipped.map(_ + _))
@@ -79,22 +105,22 @@ case class Histogram(
   //    apply(min, step, newCounts, newCuts, newClassDistrib)
   //  }
 
-  def nColumns(i: Int) = cutMatrix(i).size
+  def nColumns(i: Int) = cutMatrixL1(i).size
 
   override def toString: String = {
 
     val classDistrBuff = StringBuilder.newBuilder
 
-    for (row <- classDistribMatrix.indices) {
+    for (row <- distribMatrixL1.indices) {
       classDistrBuff.append(s"Attr $row: \n\t")
-      val maps = classDistribMatrix(row).filter(_.nonEmpty).mkString
+      val maps = distribMatrixL1(row).filter(_.nonEmpty).mkString
       classDistrBuff.append(maps)
       classDistrBuff.append("\n")
     }
 
     s"Histogram: => " +
       "Counts [\n" + countMatrix.toString + "]" +
-      "Cuts [ \n" + cutMatrix.toString + "]" +
+      "Cuts [ \n" + cutMatrixL1.toString + "]" +
       "classDistrib [ \n" + classDistrBuff + " ]"
   }
 }
@@ -108,5 +134,7 @@ object Histogram {
       step,
       Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(0)),
       Array.fill(nRows)(ArrayBuffer.tabulate(nCols + 1)(min + _.toDouble * step)),
-      Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(Map.empty[Int, Double])))
+      Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(Map.empty[Int, Double])),
+      Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(Map.empty[Int, Double])),
+      Array.fill(nRows)(ArrayBuffer.tabulate(nCols + 1)(min + _.toDouble * step)))
 }
