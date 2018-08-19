@@ -29,16 +29,16 @@ case class Histogram(
   private val countMatrix: Array[ArrayBuffer[Double]],
   private val cutMatrixL1: Array[ArrayBuffer[Double]],
   private val distribMatrixL1: Array[ArrayBuffer[Map[Int, Double]]],
-  private val distribMatrixL2: Array[ArrayBuffer[Map[Int, Double]]]
-/*private val cutMatrixL2: Array[ArrayBuffer[Double]]*/ )
+  private val distribMatrixL2: Array[ArrayBuffer[Map[Int, Double]]],
+  private val cutMatrixL2: ArrayBuffer[ArrayBuffer[Double]])
   extends Serializable {
 
   def updateCounts(row: Int, col: Int, value: Double): Unit =
     countMatrix(row).update(col, value)
   def updateCuts(row: Int, col: Int, value: Double): Unit =
     cutMatrixL1(row).update(col, value)
-  //  def updateCutsL2(row: Int, col: Int, value: Double): Unit =
-  //    cutMatrixL2(row).update(col, value)
+    def updateCutsL2(row: Int, col: Int, value: Double): Unit =
+      cutMatrixL2(row).update(col, value)
   def updateClassDistribL1(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
     distribMatrixL1(row).update(col, newDist)
   def updateClassDistribL1(row: Int, col: Int, label: Int): Unit = {
@@ -58,19 +58,19 @@ case class Histogram(
     countMatrix(row).insert(col, value)
   def addCuts(row: Int, col: Int, value: Double): Unit =
     cutMatrixL1(row).insert(col, value)
-  //  def addCutsL2(row: Int, col: Int, value: Double): Unit =
-  //    cutMatrixL2(row).insert(col, value)
+    def addCutsL2(row: Int, col: Int, value: Double): Unit =
+      cutMatrixL2(row).insert(col, value)
   def addClassDistribL1(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
     distribMatrixL1(row).insert(col, newDist)
   def addClassDistribL2(row: Int, col: Int, newDist: Map[Int, Double]): Unit =
     distribMatrixL2(row).insert(col, newDist)
 
-  //  def clearCutsL2: Unit = cutMatrixL2.clear
+  def clearCutsL2: Unit = cutMatrixL2.clear
 
   def prependCut(i: Int, value: Double): Unit =
     cutMatrixL1(i).prepend(value)
-  //  def prependCutL2(i: Int, value: Double): Unit =
-  //    cutMatrixL2(i).prepend(value)
+    def prependCutL2(i: Int, value: Double): Unit =
+      cutMatrixL2(i).prepend(value)
   def prependCounts(i: Int, value: Double): Unit =
     countMatrix(i).prepend(value)
   def prependClassDistribL1(i: Int, newDist: Map[Int, Double]): Unit =
@@ -80,8 +80,8 @@ case class Histogram(
 
   def appendCut(i: Int, value: Double): Unit =
     cutMatrixL1(i).append(value)
-  //  def appendCutL2(i: Int, value: Double): Unit =
-  //    cutMatrixL2(i).append(value)
+    def appendCutL2(i: Int, value: Double): Unit =
+      cutMatrixL2(i).append(value)
   def appendCounts(i: Int, value: Double): Unit =
     countMatrix(i).append(value)
   def appendClassDistL1(i: Int, newDist: Map[Int, Double]): Unit =
@@ -148,6 +148,6 @@ object Histogram {
       Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(0)),
       Array.fill(nRows)(ArrayBuffer.tabulate(nCols + 1)(min + _.toDouble * step)),
       Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(Map.empty[Int, Double])),
-      Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(Map.empty[Int, Double]))
-    /*Array.fill(nRows)(ArrayBuffer.tabulate(nCols + 1)(min + _.toDouble * step))*/ )
+      Array.fill(nRows)(ArrayBuffer.fill(nCols + 1)(Map.empty[Int, Double])),
+      ArrayBuffer.fill(nRows)(ArrayBuffer.tabulate(nCols + 1)(min + _.toDouble * step)))
 }

@@ -228,7 +228,7 @@ object PIDiscretizerTransformer {
       lv: LabeledVector,
       h: Histogram): Histogram = {
 
-  //    h.clearCutsL2
+      h.clearCutsL2
 
       val cuts = lv.vector.foldRight(h) {
         case ((i, x), z) =>
