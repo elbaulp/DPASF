@@ -11,7 +11,7 @@ organization := "com.elbauldelprogramador"
 
 scalaVersion in ThisBuild := "2.11.3"
 
-val flinkVersion = "1.5.0"
+val flinkVersion = "1.6.0"
 
 val genericDeps = Seq(
 //  "nz.ac.waikato.cms.moa" % "moa" % "2017.06",

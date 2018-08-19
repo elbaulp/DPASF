@@ -20,9 +20,11 @@ package com.elbauldelprogramador.discretizers
 import com.elbauldelprogramador.datastructures.Histogram
 import com.elbauldelprogramador.utils.FlinkUtils
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
-import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
+import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
+import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
 import org.slf4j.LoggerFactory
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * Partition Incremental Discretization (PiD)
@@ -134,12 +136,17 @@ object PIDiscretizerTransformer {
         (x, Histogram(nAttrs, l1InitialBins, min, instance.step), 1)
       }.reduce { (m1, m2) =>
         // Update Layer 1
-        val updated = updateL1(m1._1, m1._2, instance.step, initialElems, alpha, m1._3)
+        val updatedL1 = updateL1(m1._1, m1._2, instance.step, initialElems, alpha, m1._3)
 
-        (m2._1, updated, m1._3 + 1)
+//         Update Layer 2 if neccesary
+                val updatedL2 = if (m1._3 % l2updateExamples == 0) {
+                  updateL2(m1._1, updatedL1)
+                } else updatedL1
+
+        (m2._1, updatedL2, m1._3 + 1)
       }.map(_._2)
 
-      instance.metricsOption = Some(metric)
+      //      instance.metricsOption = Some(metric)
 
       log.info(s"H: ${metric.print}")
     }
@@ -152,9 +159,13 @@ object PIDiscretizerTransformer {
       transformParameters: ParameterMap,
       input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
       val resultingParameters = instance.parameters ++ transformParameters
-      input.print
 
-      input
+      instance.metricsOption match {
+        case Some(m) =>
+          m.print
+          input.map(l => LabeledVector(l.label + 1, l.vector))
+        case None => input
+      }
     }
   }
 
@@ -212,4 +223,28 @@ object PIDiscretizerTransformer {
         z
     }
   }
+
+    private[this] def updateL2(
+      lv: LabeledVector,
+      h: Histogram): Histogram = {
+
+  //    h.clearCutsL2
+
+      val cuts = lv.vector.foldRight(h) {
+        case ((i, x), z) =>
+          val attrCuts = subSetCuts(i, 0, z.nColumns(i), z)
+          z
+      }
+      cuts
+
+    }
+
+    private[this] def subSetCuts(index: Int, first: Int, last: Int, h: Histogram): Array[ArrayBuffer[Double]] = {
+      require((last - first) >= 2, s"($last - $first) >= 2")
+
+      // Greatest class observed till the moment
+      val nClasses = h.greatestClass(index, first, last)
+
+      Array.empty[ArrayBuffer[Double]]
+    }
 }
