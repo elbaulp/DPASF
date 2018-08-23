@@ -28,7 +28,7 @@ case class Histogram(
   step: Double,
   private val countMatrix: Array[ArrayBuffer[Double]],
   private val cutMatrixL1: Array[ArrayBuffer[Double]],
-  private val distribMatrixL1: Array[ArrayBuffer[Map[Int, Double]]],
+  val distribMatrixL1: Array[ArrayBuffer[Map[Int, Double]]],
   private val distribMatrixL2: Array[ArrayBuffer[Map[Int, Double]]],
   private val cutMatrixL2: ArrayBuffer[ArrayBuffer[Double]])
   extends Serializable {
@@ -95,16 +95,33 @@ case class Histogram(
   def classDistribL1(row: Int, col: Int): Map[Int, Double] = distribMatrixL1(row)(col)
   def classDistribL2(row: Int, col: Int): Map[Int, Double] = distribMatrixL2(row)(col)
 
-    def greatestClass(attrIdx: Int, i: Int, l: Int): Int =
-      distribMatrixL1(attrIdx).slice(i, l)
-        .maxBy { x =>
-          if (x.nonEmpty)
-            x.keysIterator.max
-          else
-            0
-        }.keySet
-         .max
+  // TODO make all bellow private and compute entropy publicly
+  def greatestClass(attrIdx: Int, i: Int, l: Int): Int = {
+    val slice = distribMatrixL1(attrIdx).slice(i, l)
+    if (slice.nonEmpty){
+      val r = slice.maxBy { x =>
+        if (x.nonEmpty)
+          x.keysIterator.max
+        else
+          0
+      }.keySet
+      if (r.isEmpty) 1 else r.max + 1
+    }
+    else 1
+  }
 
+  def classCounts(attrIdx: Int, i: Int, l: Int): Map[Int, Double] = {
+    // https://stackoverflow.com/a/1263028
+    val counts = distribMatrixL1(attrIdx).slice(i, l)
+
+    mergeMap(counts)((x, y) => x + y)
+  }
+
+  // https://stackoverflow.com/a/1264772
+  private[this] def mergeMap[A, B](ms: Seq[Map[A, B]])(f: (B, B) => B): Map[A, B] =
+    (Map.empty[A, B] /: (for (m <- ms; kv <- m) yield kv)) { (a, kv) =>
+      a + (if (a.contains(kv._1)) kv._1 -> f(a(kv._1), kv._2) else kv)
+    }
 
   //  def ++(h: Histogram): Histogram = {
   //    val newCuts = DenseMatrix(nRows, nCols, (h.cutMatrix.data, cutMatrix.data).zipped.map(_ + _))
