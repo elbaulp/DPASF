@@ -17,7 +17,7 @@
 
 package com.elbauldelprogramador.featureselection
 
-import com.elbauldelprogramador.featureselection.InformationTheory.entropy
+import com.elbauldelprogramador.utils.InformationTheory.entropy
 import org.apache.flink.api.scala.{ DataSet, _ }
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
 import org.apache.flink.ml.math.{ DenseVector, Vector }
