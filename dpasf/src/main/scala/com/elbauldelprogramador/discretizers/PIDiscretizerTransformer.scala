@@ -18,25 +18,23 @@
 package com.elbauldelprogramador.discretizers
 
 import com.elbauldelprogramador.datastructures.Histogram
-import com.elbauldelprogramador.utils.FlinkUtils
+import com.elbauldelprogramador.utils.{FlinkUtils, InformationTheory}
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
 import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable.ArrayBuffer
-
 /**
- * Partition Incremental Discretization (PiD)
- *
- * For more information, see:<br/>
- *
- * João Gama and Carlos Pinto. 2006. Discretization from data streams: applications to histograms and data mining.
- * In Proceedings of the 2006 ACM symposium on Applied computing (SAC '06). ACM, New York, NY, USA, 662-667.
- *
- * DOI : http://dx.doi.org/10.1145/1141277.1141429
- *
- */
+  * Partition Incremental Discretization (PiD)
+  *
+  * For more information, see:<br/>
+  *
+  * João Gama and Carlos Pinto. 2006. Discretization from data streams: applications to histograms and data mining.
+  * In Proceedings of the 2006 ACM symposium on Applied computing (SAC '06). ACM, New York, NY, USA, 662-667.
+  *
+  * DOI : http://dx.doi.org/10.1145/1141277.1141429
+  *
+  */
 class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
   import PIDiscretizerTransformer._
@@ -46,37 +44,37 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
   // TODO docs
   def setUpdateExamples(l2Updates: Int): PIDiscretizerTransformer = {
-    parameters add (L2UpdateExamples, l2Updates)
+    parameters add(L2UpdateExamples, l2Updates)
     this
   }
 
   // TODO docs
   def setL1Bins(bins: Int): PIDiscretizerTransformer = {
-    parameters add (L1InitialBins, bins)
+    parameters add(L1InitialBins, bins)
     this
   }
 
   // TODO docs
   def setInitElements(n: Int): PIDiscretizerTransformer = {
-    parameters add (InitialElements, n)
+    parameters add(InitialElements, n)
     this
   }
 
   // TODO docs
   def setAlpha(alpha: Double): PIDiscretizerTransformer = {
-    parameters add (Alpha, alpha)
+    parameters add(Alpha, alpha)
     this
   }
 
   // TODO docs
   def setMin(min: Int): PIDiscretizerTransformer = {
-    parameters add (Min, min)
+    parameters add(Min, min)
     this
   }
 
   // TODO docs
   def setMax(max: Int): PIDiscretizerTransformer = {
-    parameters add (Max, max)
+    parameters add(Max, max)
     this
   }
 }
@@ -118,9 +116,9 @@ object PIDiscretizerTransformer {
   // TODO doc
   implicit val fitNoOp = new FitOperation[PIDiscretizerTransformer, LabeledVector] {
     override def fit(
-      instance: PIDiscretizerTransformer,
-      fitParameters: ParameterMap,
-      input: DataSet[LabeledVector]): Unit = {
+                      instance: PIDiscretizerTransformer,
+                      fitParameters: ParameterMap,
+                      input: DataSet[LabeledVector]): Unit = {
 
       val resultingParameters = instance.parameters ++ fitParameters
       val l2updateExamples = resultingParameters(L2UpdateExamples)
@@ -138,10 +136,10 @@ object PIDiscretizerTransformer {
         // Update Layer 1
         val updatedL1 = updateL1(m1._1, m1._2, instance.step, initialElems, alpha, m1._3)
 
-//         Update Layer 2 if neccesary
-                val updatedL2 = if (m1._3 % l2updateExamples == 0) {
-                  updateL2(m1._1, updatedL1)
-                } else updatedL1
+        //         Update Layer 2 if neccesary
+        val updatedL2 = if (m1._3 % l2updateExamples == 0) {
+          updateL2(m1._1, updatedL1)
+        } else updatedL1
 
         (m2._1, updatedL2, m1._3 + 1)
       }.map(_._2)
@@ -155,9 +153,9 @@ object PIDiscretizerTransformer {
   // TODO doc
   implicit val transformLabeledIDADiscretizer = new TransformDataSetOperation[PIDiscretizerTransformer, LabeledVector, LabeledVector] {
     override def transformDataSet(
-      instance: PIDiscretizerTransformer,
-      transformParameters: ParameterMap,
-      input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
+                                   instance: PIDiscretizerTransformer,
+                                   transformParameters: ParameterMap,
+                                   input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
       val resultingParameters = instance.parameters ++ transformParameters
 
       instance.metricsOption match {
@@ -170,12 +168,12 @@ object PIDiscretizerTransformer {
   }
 
   private[this] def updateL1(
-    lv: LabeledVector,
-    h: Histogram,
-    step: Double,
-    initElems: Int,
-    alpha: Double,
-    totalCount: Int): Histogram = {
+                              lv: LabeledVector,
+                              h: Histogram,
+                              step: Double,
+                              initElems: Int,
+                              alpha: Double,
+                              totalCount: Int): Histogram = {
     lv.vector.foldLeft(h) {
       case (z, (i, x)) =>
         val k =
@@ -224,27 +222,98 @@ object PIDiscretizerTransformer {
     }
   }
 
-    private[this] def updateL2(
-      lv: LabeledVector,
-      h: Histogram): Histogram = {
+  private[this] def updateL2(
+                              lv: LabeledVector,
+                              h: Histogram): Histogram = {
 
-      h.clearCutsL2
+    h.clearCutsL2
 
-      val cuts = lv.vector.foldRight(h) {
-        case ((i, x), z) =>
-          val attrCuts = subSetCuts(i, 0, z.nColumns(i), z)
-          z
-      }
-      cuts
-
+    val cuts = lv.vector.foldRight(Seq.empty[Double]) {
+      case ((i, _), z) =>
+        val c = subSetCuts(i, 0, h.nColumns(i), h)
+        c match {
+          case Some(x) => x
+          case None => Seq.empty
+        }
     }
+    h
 
-    private[this] def subSetCuts(index: Int, first: Int, last: Int, h: Histogram): Array[ArrayBuffer[Double]] = {
-      require((last - first) >= 2, s"($last - $first) >= 2")
+  }
 
+  private[this] def subSetCuts(index: Int, first: Int, last: Int, h: Histogram): Option[Seq[Double]] = {
+
+    if ((last - first) < 2) {
+      log.error("(last - first) < 2")
+      None
+    } else {
       // Greatest class observed till the moment
       val nClasses = h.greatestClass(index, first, last)
+      val priorCounts = h.classCounts(index, first, last)
+      val priorMatrix = Seq.tabulate(nClasses)(priorCounts.getOrElse(_, 0d))
+      val priorH = InformationTheory.entropy(priorCounts.values.toVector)
 
-      Array.empty[ArrayBuffer[Double]]
+      // Find best Entropy
+      val (counts1, counts2, bestH, bestIndex, nCuts) = h.distribMatrixL1(index).slice(first, last - 1)
+        .zipWithIndex
+        //  (counts,                 counts,      bestEntropy, bestIndex, nCutpoints)
+        ./:((Seq.fill(nClasses)(0d), priorMatrix, priorH, 0, 0)) {
+        case (z, (m, i)) =>
+          val counts = m./:(z) { (z, x) =>
+            val z1Updated = z._1.updated(x._1, z._1(x._1) + x._2)
+            val z2Updated = z._2.updated(x._1, z._2(x._1) - x._2)
+
+            (z1Updated, z2Updated, z._3, z._4, i)
+          }
+          val currentCut = h.cuts(index, i)
+          val contingencyMatrix = Seq(counts._1, counts._2)
+          val currH = InformationTheory.entropyConditionedOnRows(contingencyMatrix)
+
+          if (currH < z._3) (counts._1, counts._2, currH, i, i)
+          else (z._1, z._2, z._3, z._4, i)
+      }
+
+      // Check if gain is zero
+      if ((priorH - bestH) <= 0) {
+        log.error("(priorH - bestH) <= 0")
+        None
+      } else {
+        log.error("Else gain")
+        // Check if split is accepted
+        // https://github.com/tmadl/sklearn-expertsys/blob/master/Discretization/MDLP.py
+        if (InformationTheory.FayyadAndIranisMDL(priorCounts,
+          Seq(counts1, counts2),
+          priorMatrix.sum,
+          nCuts)) {
+          log.error("FAyyad meets")
+          // Select splitted points for the left and right subsets
+          h.distribMatrixL1(index)(index).filter(_._2 <= h.cuts(index, bestIndex))// TODO
+          log.error(s"Calling left /w (first, best+1) = ($first, ${bestIndex + 1}")
+          val left = subSetCuts(index, first, bestIndex + 1, h)
+          log.error(s"Calling right /w (best+1, last) = (${bestIndex + 1}, $last")
+          val right = subSetCuts(index, bestIndex + 1, last, h)
+          log.error(s"Left & right: $left, $right")
+
+          // Merge process
+          val bestCut = h.cuts(index, bestIndex)
+
+          val cutpoints = (left, right) match {
+            case (None, None) =>
+              Seq(bestCut)
+            case (Some(l), None) =>
+              l :+ bestCut
+            case (None, Some(r)) =>
+              bestCut +: r
+            case (Some(l), Some(r)) =>
+              (l :+ bestCut) ++ r
+          }
+          log.error(s"FAyyad meets for this cut: $cutpoints")
+          Some(cutpoints)
+
+        } else {
+          log.error("FAyyad does not meets")
+          None
+        }
+      }
     }
+  }
 }
