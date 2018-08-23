@@ -37,23 +37,24 @@ class PIDiscretizerTransformerSpec extends BddSpec with Serializable {
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
 
-    private val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
-    private[discretizers] val dataSet = data map { tuple =>
-      val list = tuple.productIterator.toList
-      val numList = list map (_.asInstanceOf[Double])
-      LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
-    }
+//    private val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
+//    private[discretizers] val dataSet = data map { tuple =>
+//      val list = tuple.productIterator.toList
+//      val numList = list map (_.asInstanceOf[Double])
+//      LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
+//    }
 
-//  val data = env.readCsvFile[ElecNormNew](getClass.getResource("/elecNormNew.arff").getPath)
-//  val dataSet = data map { tuple =>
-//    val list = tuple.productIterator.toList
-//    val numList = list map (_.asInstanceOf[Double])
-//    LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
-//  }
+  val data = env.readCsvFile[ElecNormNew](getClass.getResource("/elecNormNew.arff").getPath)
+  val dataSet = data map { tuple =>
+    val list = tuple.productIterator.toList
+    val numList = list map (_.asInstanceOf[Double])
+    LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
+  }
 
   private val pid = PIDiscretizerTransformer()
-    .setAlpha(.10)
-    .setUpdateExamples(25)
+//    .setAlpha(.10)
+//    .setUpdateExamples(50)
+//    .setL1Bins(499)
   private val scaler = MinMaxScaler()
 
   "A PIDiscretizer on ElecNormNew" - {
