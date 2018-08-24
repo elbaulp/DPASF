@@ -96,25 +96,68 @@ case class Histogram(
   def classDistribL2(row: Int, col: Int): Map[Int, Double] = distribMatrixL2(row)(col)
 
   // TODO make all bellow private and compute entropy publicly
-  def greatestClass(attrIdx: Int, i: Int, l: Int): Int = {
-    val slice = distribMatrixL1(attrIdx).slice(i, l)
-    if (slice.nonEmpty){
-      val r = slice.maxBy { x =>
-        if (x.nonEmpty)
-          x.keysIterator.max
-        else
-          0
-      }.keySet
-      if (r.isEmpty) 1 else r.max + 1
+  def greatestClass(attrIdx: Int, first: Int, l: Int): Int = {
+    def before(attrIdx: Int, first: Int, l: Int) = {
+          val slice = distribMatrixL1(attrIdx).slice(first, l)
+          if (slice.nonEmpty){
+            val r = slice.maxBy { x =>
+              if (x.nonEmpty)
+                x.keysIterator.max
+              else
+                0
+            }.keySet
+            if (r.isEmpty) 1 else r.max + 1
+          }
+          else 1
     }
-    else 1
+
+    var numClasses = 0
+    var i = first
+    while ( {
+      i < l
+    }) {
+      val classDist = distribMatrixL1(attrIdx)(i)
+      import scala.collection.JavaConversions._
+      for (key <- classDist.keySet) {
+        if (key > numClasses) numClasses = key
+      }
+
+      {
+        i += 1; i - 1
+      }
+    }
+    assert(before(attrIdx, first, l) == numClasses + 1)
+    numClasses + 1
   }
 
-  def classCounts(attrIdx: Int, i: Int, l: Int): Map[Int, Double] = {
-    // https://stackoverflow.com/a/1263028
-    val counts = distribMatrixL1(attrIdx).slice(i, l)
+  def classCounts(attrIdx: Int, first: Int, l: Int): Map[Int, Double] = {
+    def before = {
+      // https://stackoverflow.com/a/1263028
+      val counts = distribMatrixL1(attrIdx).slice(first, l)
 
-    mergeMap(counts)((x, y) => x + y)
+      val r = mergeMap(counts)((x, y) => x + y)
+      if (r.isEmpty) Map(-1 -> 0d)
+      else r
+    }
+
+//    import java.util
+    val counts = Array.fill(2)(Array.fill(greatestClass(attrIdx, first, l))(0d))
+    var i = first
+    while ( {
+      i < l
+    }) {
+      val classDist = distribMatrixL1(attrIdx)(i)
+      import scala.collection.JavaConversions._
+      for (entry <- classDist.entrySet) {
+        counts(1)(entry.getKey) += entry.getValue
+//        numInstances += entry.getValue
+      }
+      {
+        i += 1; i - 1
+      }
+    }
+    assert(counts(1).sorted sameElements before.values.toSeq.sorted)
+    before
   }
 
   // https://stackoverflow.com/a/1264772
