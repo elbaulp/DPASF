@@ -131,10 +131,10 @@ object PIDiscretizerTransformer {
       val initialElems = resultingParameters(InitialElements)
       val nAttrs = FlinkUtils.numAttrs(input)
 
-      val metric = input.map { x =>
+      val metric = input.map { x ⇒
         // (instance, histrogram totalCount)
         (x, Histogram(nAttrs, l1InitialBins, min, instance.step), 1)
-      }.reduce { (m1, m2) =>
+      }.reduce { (m1, m2) ⇒
         // Update Layer 1
         val updatedL1 = updateL1(m1._1, m1._2, instance.step, initialElems, alpha, m1._3)
 
@@ -161,10 +161,10 @@ object PIDiscretizerTransformer {
       val resultingParameters = instance.parameters ++ transformParameters
 
       instance.metricsOption match {
-        case Some(m) =>
+        case Some(m) ⇒
           m.print
-          input.map(l => LabeledVector(l.label + 1, l.vector))
-        case None => input
+          input.map(l ⇒ LabeledVector(l.label + 1, l.vector))
+        case None ⇒ input
       }
     }
   }
@@ -177,7 +177,7 @@ object PIDiscretizerTransformer {
     alpha: Double,
     totalCount: Int): Histogram = {
     lv.vector.foldLeft(h) {
-      case (z, (i, x)) =>
+      case (z, (i, x)) ⇒
         val k =
           if (x <= z.cuts(i, 0))
             0
@@ -230,22 +230,22 @@ object PIDiscretizerTransformer {
 
     h.clearCutsL2
 
-    for (i <- (lv.vector.size - 1) to 0 by -1){
+    for (i ← (lv.vector.size - 1) to 0 by -1) {
       val attrCuts = subSetCuts(i, 0, h.nColumns(i), h)
 
       attrCuts match {
-        case Some(c) =>
+        case Some(c) ⇒
           val lastPoint = h.cuts(i, h.nColumns(i) - 1)
           h.clearCutsL2(i)
-          if (lastPoint != c(c.size - 1)){
+          if (lastPoint != c(c.size - 1)) {
             h.updateCutsL2(i, c.to[ArrayBuffer])
             h.updateCutsL2(i, h.nColumns(i) - 1, lastPoint)
           } else {
             h.updateCutsL2(i, c.to[ArrayBuffer])
           }
-        case None =>
+        case None ⇒
           h.clearCutsL2(i)
-          for (j <- 0 until h.nColumns(i)) {
+          for (j ← 0 until h.nColumns(i)) {
             h.updateCutsL2(i, j, h.cuts(i, j))
           }
       }
@@ -269,9 +269,8 @@ object PIDiscretizerTransformer {
 
   }
 
-  private[this] def updateDistributionsL2(attr: Int, newPoints: Seq[Double])
-    (h: Histogram): Histogram = {
-
+  private[this] def updateDistributionsL2(attr: Int, newPoints: Seq[Double])(h: Histogram): Histogram = {
+    ???
   }
 
   private[this] def subSetCuts(index: Int, first: Int, last: Int, h: Histogram): Option[Seq[Double]] = {
@@ -291,10 +290,10 @@ object PIDiscretizerTransformer {
         .zipWithIndex
         .slice(first, last - 1) // last - 1
         //  (counts,                 counts,      bestEntropy, bestIndex, nCutpoints)
-        ./:((Array.tabulate(2)(i => if (i == 1) priorCounts.values.toArray else Array.fill(nClasses)(0d)), priorH, 0, 0)) {
-          case (z, (m, i)) =>
+        ./:((Array.tabulate(2)(i ⇒ if (i == 1) priorCounts.values.toArray else Array.fill(nClasses)(0d)), priorH, 0, 0)) {
+          case (z, (m, i)) ⇒
             import scala.collection.JavaConversions._
-            for (entry <- m.entrySet) {
+            for (entry ← m.entrySet) {
               z._1(0)(entry.getKey) += entry.getValue
               z._1(1)(entry.getKey) -= entry.getValue
             }
@@ -321,7 +320,7 @@ object PIDiscretizerTransformer {
       //      val bestCounts = new Array[Array[Double]](2, numClasses)
       var bestEntropy = priorH
       val bestCounts = Array.fill(2)(Array.fill(nClasses)(0d))
-      val counts = Array.tabulate(2)(i => if (i == 1) priorCounts.values.toArray else Array.fill(nClasses)(0d))
+      val counts = Array.tabulate(2)(i ⇒ if (i == 1) priorCounts.values.toArray else Array.fill(nClasses)(0d))
       var i = first
       var bestCutpoint = Map.empty[Int, Double]
       var bestI = 0
@@ -332,7 +331,7 @@ object PIDiscretizerTransformer {
       }) {
         val classDist = h.distribMatrixL1(index)(i)
         import scala.collection.JavaConversions._
-        for (entry <- classDist.entrySet) {
+        for (entry ← classDist.entrySet) {
           counts(0)(entry.getKey) += entry.getValue
           counts(1)(entry.getKey) -= entry.getValue
         }
@@ -379,13 +378,13 @@ object PIDiscretizerTransformer {
           val bestCut = h.cuts(index, bestIndex)
 
           val cutpoints = (left, right) match {
-            case (None, None) =>
+            case (None, None) ⇒
               Seq(bestCut)
-            case (Some(l), None) =>
+            case (Some(l), None) ⇒
               l :+ bestCut
-            case (None, Some(r)) =>
+            case (None, Some(r)) ⇒
               bestCut +: r
-            case (Some(l), Some(r)) =>
+            case (Some(l), Some(r)) ⇒
               (l :+ bestCut) ++ r
           }
           log.error(s"FAyyad meets for this cut: $cutpoints")

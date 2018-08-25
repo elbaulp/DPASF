@@ -104,7 +104,7 @@ case class Histogram(
     def before(attrIdx: Int, first: Int, l: Int) = {
       val slice = distribMatrixL1(attrIdx).slice(first, l)
       if (slice.nonEmpty) {
-        val r = slice.maxBy { x =>
+        val r = slice.maxBy { x ⇒
           if (x.nonEmpty)
             x.keysIterator.max
           else
@@ -121,7 +121,7 @@ case class Histogram(
     }) {
       val classDist = distribMatrixL1(attrIdx)(i)
       import scala.collection.JavaConversions._
-      for (key <- classDist.keySet) {
+      for (key ← classDist.keySet) {
         if (key > numClasses) numClasses = key
       }
 
@@ -138,7 +138,7 @@ case class Histogram(
       // https://stackoverflow.com/a/1263028
       val counts = distribMatrixL1(attrIdx).slice(first, l)
 
-      val r = mergeMap(counts)((x, y) => x + y)
+      val r = mergeMap(counts)((x, y) ⇒ x + y)
       if (r.isEmpty) Map(-1 -> 0d)
       else r
     }
@@ -151,7 +151,7 @@ case class Histogram(
     }) {
       val classDist = distribMatrixL1(attrIdx)(i)
       import scala.collection.JavaConversions._
-      for (entry <- classDist.entrySet) {
+      for (entry ← classDist.entrySet) {
         counts(1)(entry.getKey) += entry.getValue
         //        numInstances += entry.getValue
       }
@@ -164,8 +164,8 @@ case class Histogram(
   }
 
   // https://stackoverflow.com/a/1264772
-  private[this] def mergeMap[A, B](ms: Seq[Map[A, B]])(f: (B, B) => B): Map[A, B] =
-    (Map.empty[A, B] /: (for (m <- ms; kv <- m) yield kv)) { (a, kv) =>
+  private[this] def mergeMap[A, B](ms: Seq[Map[A, B]])(f: (B, B) ⇒ B): Map[A, B] =
+    (Map.empty[A, B] /: (for (m ← ms; kv ← m) yield kv)) { (a, kv) ⇒
       a + (if (a.contains(kv._1)) kv._1 -> f(a(kv._1), kv._2) else kv)
     }
 

@@ -13,7 +13,7 @@ object InformationTheory {
     if (x > 0) math.log(x)
     else 0
 
-  private[this] val nlogn = (x: Double) => x * log(x)
+  private[this] val nlogn = (x: Double) ⇒ x * log(x)
   /**
    * Calculate entropy for the given frequencies.
    *
@@ -23,9 +23,9 @@ object InformationTheory {
    */
   private[this] def entropy(freqs: Seq[Double], n: Double) = {
     freqs.aggregate(0.0)({
-      case (h, q) =>
+      case (h, q) ⇒
         h + (if (q == 0) 0 else (q.toDouble / n) * (math.log(q.toDouble / n) / math.log(2)))
-    }, { case (h1, h2) => h1 + h2 }) * -1
+    }, { case (h1, h2) ⇒ h1 + h2 }) * -1
   }
 
   /**
@@ -46,10 +46,10 @@ object InformationTheory {
   def entropyConditionedOnRows(freqs: Seq[Seq[Double]]): Double = {
     val total = freqs.map(_.sum).sum
     -freqs.aggregate(.0)({
-      case (h, q) =>
+      case (h, q) ⇒
         (h + q.map(nlogn).sum) - nlogn(q.sum)
     }, {
-      case (h1, h2) =>
+      case (h1, h2) ⇒
         h1 + h2
     }) / (total * log2)
   }
