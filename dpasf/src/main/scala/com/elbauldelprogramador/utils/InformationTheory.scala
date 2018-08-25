@@ -13,7 +13,7 @@ object InformationTheory {
     if (x > 0) math.log(x)
     else 0
 
-  private[this] val nlogn = (x:Double) => x * log(x)
+  private[this] val nlogn = (x: Double) => x * log(x)
   /**
    * Calculate entropy for the given frequencies.
    *
@@ -37,35 +37,38 @@ object InformationTheory {
     entropy(freqs, freqs.sum)
 
   /**
-    * Computes conditional entropy of the columns given
-    * the rows.
-    *
-    * @param freqs the contingency table
-    * @return the conditional entropy of the columns given the rows
-    */
+   * Computes conditional entropy of the columns given
+   * the rows.
+   *
+   * @param freqs the contingency table
+   * @return the conditional entropy of the columns given the rows
+   */
   def entropyConditionedOnRows(freqs: Seq[Seq[Double]]): Double = {
     val total = freqs.map(_.sum).sum
-    -freqs.aggregate(.0)({ case (h, q) =>
-      (h + q.map(nlogn).sum) - nlogn(q.sum)
-    },{ case (h1, h2) =>
-      h1 + h2
+    -freqs.aggregate(.0)({
+      case (h, q) =>
+        (h + q.map(nlogn).sum) - nlogn(q.sum)
+    }, {
+      case (h1, h2) =>
+        h1 + h2
     }) / (total * log2)
   }
 
   /**
-    * Test using Fayyad and Irani's MDL criterion.
-    *
-    * @param priorCounts
-    * @param bestCounts
-    * @param numInstances
-    * @param numCutPoints
-    *
-    * @return true if the splits is acceptable
-    */
-  def FayyadAndIranisMDL(priorCounts: Map[Int, Double],
-                         bestCounts: Seq[Seq[Double]],
-                         numInstances: Double,
-                         numCutPoints: Int): Boolean = {
+   * Test using Fayyad and Irani's MDL criterion.
+   *
+   * @param priorCounts
+   * @param bestCounts
+   * @param numInstances
+   * @param numCutPoints
+   *
+   * @return true if the splits is acceptable
+   */
+  def FayyadAndIranisMDL(
+    priorCounts: Map[Int, Double],
+    bestCounts: Seq[Seq[Double]],
+    numInstances: Double,
+    numCutPoints: Int): Boolean = {
     // Entropy before split
     val priorH = entropy(priorCounts.values.toSeq)
 
@@ -74,7 +77,7 @@ object InformationTheory {
 
     // Compute InfoGain
     val gain = priorH - h
-//    assert(gain != priorH)
+    //    assert(gain != priorH)
 
     // Number of classes occuring in the set
     val nClasses = priorCounts.keys.size
@@ -93,7 +96,7 @@ object InformationTheory {
       ((nClasses * priorH) - (nClassesRight * hRight) - (nClassesLeft * hLeft))
 
     // Check if split is accepted or not
-//    gain > ((log2(numInstances - 1) + delta) / numInstances)
+    //    gain > ((log2(numInstances - 1) + delta) / numInstances)
     gain > ((log2(numCutPoints - 1) + delta) / numInstances)
   }
 }
