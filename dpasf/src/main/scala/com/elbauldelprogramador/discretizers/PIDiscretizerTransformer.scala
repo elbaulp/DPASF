@@ -18,11 +18,11 @@
 package com.elbauldelprogramador.discretizers
 
 import com.elbauldelprogramador.datastructures.Histogram
-import com.elbauldelprogramador.utils.{FlinkUtils, InformationTheory}
+import com.elbauldelprogramador.utils.{ FlinkUtils, InformationTheory }
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
+import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
+import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -41,40 +41,75 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
   import PIDiscretizerTransformer._
 
-  private[PIDiscretizerTransformer] var metricsOption: Option[DataSet[Vector[Vector[Double]]]] = None
+  //  private[PIDiscretizerTransformer] var metricsOption: Option[DataSet[Vector[Vector[Double]]]] = None
   private[PIDiscretizerTransformer] lazy val step = (parameters(Max) - parameters(Min)) / parameters(L1InitialBins).toDouble
 
-  // TODO docs
+  /**
+   * Sets the number of Samples needed to be observer to trigger
+   * a layer 2 update
+   *
+   * @param l2Updates Number of instances needed to trigger a Layer 2 update
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setUpdateExamples(l2Updates: Int): PIDiscretizerTransformer = {
     parameters add (L2UpdateExamples, l2Updates)
     this
   }
 
-  // TODO docs
+  /**
+   * Sets the number of initial bins for layer 1
+   *
+   * @param bins Number of bins
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setL1Bins(bins: Int): PIDiscretizerTransformer = {
     parameters add (L1InitialBins, bins)
     this
   }
 
-  // TODO docs
+  /**
+   * Sets the minimun number of elements to start the update for layer 1
+   *
+   * @param n Number of elements
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setInitElements(n: Int): PIDiscretizerTransformer = {
     parameters add (InitialElements, n)
     this
   }
 
-  // TODO docs
+  /**
+   * Set the threshold for splitting a interval
+   *
+   * @param alpha Desired alpha threshold
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setAlpha(alpha: Double): PIDiscretizerTransformer = {
     parameters add (Alpha, alpha)
     this
   }
 
-  // TODO docs
+  /**
+   * If data not scaled, use this as the minimun variable range
+   *
+   * currently not used, its assumed the data is scaled
+   *
+   * @param min min value of the variable
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setMin(min: Int): PIDiscretizerTransformer = {
     parameters add (Min, min)
     this
   }
 
-  // TODO docs
+  /**
+   * If data not scaled, use this as the maximun variable range
+   *
+   * currently not used, its assumed the data is scaled
+   *
+   * @param max max value of the variable
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setMax(max: Int): PIDiscretizerTransformer = {
     parameters add (Max, max)
     this
@@ -83,7 +118,7 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
 object PIDiscretizerTransformer {
 
-//  private[this] val log = LoggerFactory.getLogger(this.getClass)
+  //  private[this] val log = LoggerFactory.getLogger(this.getClass)
 
   // ========================================== Parameters =========================================
   private[PIDiscretizerTransformer] case object L2UpdateExamples extends Parameter[Int] {
@@ -115,7 +150,9 @@ object PIDiscretizerTransformer {
 
   // ========================================== Operations =========================================
 
-  // TODO doc
+  /**
+   * [[PIDiscretizerTransformer]] does not need a fitting phase
+   */
   implicit val fitNoOp = new FitOperation[PIDiscretizerTransformer, LabeledVector] {
     override def fit(
       instance: PIDiscretizerTransformer,
@@ -123,7 +160,12 @@ object PIDiscretizerTransformer {
       input: DataSet[LabeledVector]): Unit = {}
   }
 
-  // TODO doc
+  /**
+   * [[TransformDataSetOperation]] which performs a Discretization using PiD (Partition Incremental Discretization) on
+   * a [[DataSet]] which type is [[LabeledVector]]
+   *
+   * @return A [[DataSet]] discretized according to PiD
+   */
   implicit val transformLabeledIDADiscretizer = new TransformDataSetOperation[PIDiscretizerTransformer, LabeledVector, LabeledVector] {
     override def transformDataSet(
       instance: PIDiscretizerTransformer,
@@ -168,6 +210,27 @@ object PIDiscretizerTransformer {
     }
   }
 
+  /**
+   * Updates Layer 1 of the algorithm.
+   *
+   * This layer simplifies and summarizes the data. In this phase there are usualy
+   * much more bins that desired, specified via [[L1InitialBins]].
+   *
+   * This method:
+   *
+   * - For each value on the [[DataSet]], this method determines its corresponding interval.
+   * - When the numbers of counts is above [[Alpha]] (A percentage of the total number of points seen so far)
+   * a split process is triggered.  If the interval triggering the split is the first or the last, a new
+   * interval with the same step is inserted. Otherwise, the interval is splitted in two, creating a new interval.
+   *
+   * @param lv         [[LabeledVector]] with a instance
+   * @param h          [[Histogram]] storing all internal data Structures
+   * @param step       the desired step
+   * @param initElems  How many elements are needed before trying to split
+   * @param alpha      Threshold to launch split process
+   * @param totalCount Number of instances seen so far
+   * @return An [[Histogram]] updated with the new information
+   */
   private[this] def updateL1(
     lv: LabeledVector,
     h: Histogram,
@@ -223,6 +286,13 @@ object PIDiscretizerTransformer {
     }
   }
 
+  /**
+   * In layer 2 the intervals created in layer 1 are merged to reduce its size
+   *
+   * @param lv [[LabeledVector]] instance
+   * @param h  [[Histogram]] with all information of counts, distributions and intervals
+   * @return An updated [[Histogram]]
+   */
   private[this] def updateL2(
     lv: LabeledVector,
     h: Histogram): Histogram = {
@@ -254,6 +324,14 @@ object PIDiscretizerTransformer {
     newH
   }
 
+  /**
+   * Updates the distributions in layer 2 in order to reduce the number of bins for each attribute
+   *
+   * @param attr      Index of the attribute to which update its distributions
+   * @param newPoints Sequence of updated cutpoints to merge intervals
+   * @param h         [[Histogram]] holding all the information
+   * @return An updated [[Histogram]]
+   */
   private[this] def updateDistributionsL2(attr: Int, newPoints: Seq[Double])(h: Histogram): Histogram = {
     val newDistribL2 = ArrayBuffer.empty[Map[Int, Double]]
     val interval = collection.mutable.Map.empty[Int, Double]
@@ -279,6 +357,22 @@ object PIDiscretizerTransformer {
     h
   }
 
+  /**
+   * Recursive Entropy Discretization Algorithm.
+   *
+   * An implemantation of Fayyad & and Irani <a href="http://yaroslavvb.com/papers/fayyad-discretization.pdf">ref.</a>
+   *
+   * This algorithm uses the class information entropy of candidate partitions to select the boundaries for
+   * discretization. It starts finding a single threshold that minimizes the entropy function over all possible
+   * cut-points; it is then recursively applied to both of the partitions. The stopping criteria uses the
+   * Minimum Description Length Principle <a href="https://en.wikipedia.org/wiki/Minimum_description_length">ref.</a>.
+   *
+   * @param index  Index for the current attribute
+   * @param first  Index for the first sets of intervals to examine
+   * @param last   Index for the last sets of intervals to examine
+   * @param h      [[Histogram]] with all the information
+   * @return The new calculated cutpoints
+   */
   private[this] def subSetCuts(index: Int, first: Int, last: Int, h: Histogram): Option[Seq[Double]] = {
 
     if ((last - first) < 2)
@@ -317,7 +411,7 @@ object PIDiscretizerTransformer {
       // Check if gain is zero
       if ((priorH - bestH) <= 0)
         None
-       else {
+      else {
         // Check if split is accepted
         if (InformationTheory.FayyadAndIranisMDL(
           priorCounts.last,
