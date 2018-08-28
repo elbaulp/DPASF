@@ -19,8 +19,11 @@ package com.elbauldelprogramador.datastructures
 
 import scala.collection.mutable.ArrayBuffer
 
-// TODO: DOC
-// TODO: TEST
+/**
+  * Data Structure that stores all information needed by the [[com.elbauldelprogramador.discretizers.PIDiscretizerTransformer]]
+  * algorithm.
+  *
+  */
 case class Histogram(
   nRows: Int,
   nCols: Int,
@@ -32,7 +35,7 @@ case class Histogram(
   distribMatrixL2: Array[ArrayBuffer[Map[Int, Double]]],
   cutMatrixL2: ArrayBuffer[ArrayBuffer[Double]])
   extends Serializable {
-
+  
   def updateCounts(row: Int, col: Int, value: Double): Unit =
     countMatrix(row).update(col, value)
 
@@ -135,7 +138,6 @@ case class Histogram(
 
   def classDistribL2(row: Int, col: Int): Map[Int, Double] = distribMatrixL2(row)(col)
 
-  // TODO make all bellow private and compute entropy publicly
   private[this] def greatestClass(attrIdx: Int, first: Int, l: Int): Int = {
     val slice = distribMatrixL1(attrIdx).slice(first, l)
     if (slice.nonEmpty) {
