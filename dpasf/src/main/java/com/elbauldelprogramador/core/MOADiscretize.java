@@ -2,7 +2,9 @@ package com.elbauldelprogramador.core;
 
 import org.apache.flink.ml.common.LabeledVector;
 import org.apache.flink.ml.math.DenseVector;
+import weka.core.ContingencyTables;
 import weka.core.Range;
+import weka.core.Utils;
 import weka.filters.Filter;
 
 import java.io.FileWriter;
@@ -214,6 +216,71 @@ public abstract class MOADiscretize
             e.printStackTrace();
         }
 
+    }
+
+    /**
+     * Test using Fayyad and Irani's MDL criterion.
+     *
+     * @param priorCounts
+     * @param bestCounts
+     * @param numInstances
+     * @param numCutPoints
+     * @return true if the splits is acceptable
+     */
+    protected boolean FayyadAndIranisMDL(double[] priorCounts,
+                                         double[][] bestCounts,
+                                         double numInstances,
+                                         int numCutPoints) {
+
+        double priorEntropy, entropy, gain;
+        double entropyLeft, entropyRight, delta;
+        int numClassesTotal, numClassesRight, numClassesLeft;
+
+        // Compute entropy before split.
+        priorEntropy = ContingencyTables.entropy(priorCounts);
+
+        // Compute entropy after split.
+        entropy = ContingencyTables.entropyConditionedOnRows(bestCounts);
+
+        // Compute information gain.
+        gain = priorEntropy - entropy;
+        if(gain == priorEntropy)
+            System.err.println("hOLA");
+
+        // Number of classes occuring in the set
+        numClassesTotal = 0;
+        for (double priorCount : priorCounts) {
+            if (priorCount > 0) {
+                numClassesTotal++;
+            }
+        }
+
+        // Number of classes occuring in the left subset
+        numClassesLeft = 0;
+        for (int i = 0; i < bestCounts[0].length; i++) {
+            if (bestCounts[0][i] > 0) {
+                numClassesLeft++;
+            }
+        }
+
+        // Number of classes occuring in the right subset
+        numClassesRight = 0;
+        for (int i = 0; i < bestCounts[1].length; i++) {
+            if (bestCounts[1][i] > 0) {
+                numClassesRight++;
+            }
+        }
+
+        // Entropy of the left and the right subsets
+        entropyLeft = ContingencyTables.entropy(bestCounts[0]);
+        entropyRight = ContingencyTables.entropy(bestCounts[1]);
+
+        // Compute terms for MDL formula
+        delta = Utils.log2(Math.pow(3, numClassesTotal) - 2)
+                - ((numClassesTotal * priorEntropy) - (numClassesRight * entropyRight) - (numClassesLeft * entropyLeft));
+
+        // Check if split is to be accepted
+        return (gain > (Utils.log2(numCutPoints) + delta) / numInstances);
     }
 
     public abstract Float condProbGivenClass(int attI, double rVal, int dVal, int classVal, float classProb);

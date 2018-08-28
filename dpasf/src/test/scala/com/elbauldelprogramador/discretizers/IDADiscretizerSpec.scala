@@ -29,7 +29,7 @@ object fixtures extends Serializable {
   //    LabeledVector(numList(2), DenseVector(numList.take(2).toArray))
   //  })
   //val data1 = env.fromCollection(data)
-  private[discretizers] val dataSet = data map { tuple =>
+  private[discretizers] val dataSet = data map { tuple ⇒
     val list = tuple.productIterator.toList
     val numList = list map (_.asInstanceOf[Double])
     LabeledVector(numList(4), DenseVector(numList.take(4).toArray))

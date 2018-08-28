@@ -141,17 +141,17 @@ object InfoGainTransformer {
         require(selectNF <= nf, "Features to select must be less than total features")
 
         instance.gains match {
-          case Some(gains) =>
+          case Some(gains) ⇒
             val topf = gains.sortWith(_ > _).take(selectNF)
             val indexes = topf.map(gains.indexOf(_))
             log.info(s"Selecting features $indexes")
-            input.map { x =>
+            input.map { x ⇒
               val attrs = x.vector
               val output = indexes.map(attrs(_))
               LabeledVector(x.label, DenseVector(output.toArray))
             }
 
-          case None =>
+          case None ⇒
             throw new RuntimeException("The InfoGain has not been fitted to the data. " +
               "This is necessary to compute the Information Gain for each attribute.")
         }
@@ -179,17 +179,17 @@ object InfoGainTransformer {
     require(selectNF <= nf, "Features to select must be less than total features")
 
     // Compute entropy for entire dataset
-    val inputFreqs = frequencies(input, (x: LabeledVector) => x.label)
-      .map(x => x._1 -> x._2.head).sortBy(_._1)
+    val inputFreqs = frequencies(input, (x: LabeledVector) ⇒ x.label)
+      .map(x ⇒ x._1 -> x._2.head).sortBy(_._1)
     val inputH = entropy(inputFreqs map (_._2))
     // Compute InfoGain for each attribute
-    val gains = (0 until nf).map { i =>
-      val freqs = frequencies(input, (x: LabeledVector) => x.vector(i)).sortBy(_._1)
-      val px = freqs.map(x => x._1 -> x._2.sum / nInstances).sortBy(_._1)
-      val attrH = freqs.map(x => x._1 -> entropy(x._2)).sortBy(_._1)
+    val gains = (0 until nf).map { i ⇒
+      val freqs = frequencies(input, (x: LabeledVector) ⇒ x.vector(i)).sortBy(_._1)
+      val px = freqs.map(x ⇒ x._1 -> x._2.sum / nInstances).sortBy(_._1)
+      val attrH = freqs.map(x ⇒ x._1 -> entropy(x._2)).sortBy(_._1)
       // Compute H(Class | Attr)
       val HYAttr = px.map(_._2).zip(attrH.map(_._2))
-        .foldLeft(0.0)((h, x) => h + (x._1 * x._2))
+        .foldLeft(0.0)((h, x) ⇒ h + (x._1 * x._2))
       inputH - HYAttr
     }.toVector
 
@@ -230,19 +230,19 @@ object InfoGainTransformer {
    */
   private[this] def frequencies(
     input: DataSet[LabeledVector],
-    f: LabeledVector => Double): Seq[(Double, Seq[Double])] = {
+    f: LabeledVector ⇒ Double): Seq[(Double, Seq[Double])] = {
     import org.apache.flink.api.scala._
     // Group each attribute by its value to compute H(Class | Attr)
     val attrFreqs = input.
       groupBy(f).
       reduceGroup {
         // Count label frequencies for each value of Attr
-        (in, out: Collector[(Double, Seq[Double])]) =>
+        (in, out: Collector[(Double, Seq[Double])]) ⇒
           val features = in.toVector
           val groupClass = features groupBy (_.label)
           val x = groupClass.mapValues(_.size.toDouble).toSeq.map(features(0).vector(0) -> _._2)
             .groupBy(_._1)
-          for (k <- x.keys)
+          for (k ← x.keys)
             out.collect(k -> x(k).map(_._2))
       }
     attrFreqs.collect

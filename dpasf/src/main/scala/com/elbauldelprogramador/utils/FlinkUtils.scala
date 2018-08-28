@@ -32,9 +32,9 @@ private[elbauldelprogramador] case object FlinkUtils {
    */
   def numAttrs(dataset: DataSet[LabeledVector]): Int = dataset
     // only forward first vector of each partition
-    .mapPartition(in => if (in.hasNext) Seq(in.next) else Seq())
+    .mapPartition(in ⇒ if (in.hasNext) Seq(in.next) else Seq())
     // move all remaining vectors to a single partition, compute size of the first and forward it
-    .mapPartition(in => if (in.hasNext) Seq(in.next.vector.size) else Seq())
+    .mapPartition(in ⇒ if (in.hasNext) Seq(in.next.vector.size) else Seq())
     .setParallelism(1)
     .collect
     .head

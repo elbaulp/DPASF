@@ -66,13 +66,13 @@ class IDADiscretizerTransformer extends Transformer[IDADiscretizerTransformer] {
    */
   def discretizeWith(data: DataSet[LabeledVector]): DataSet[LabeledVector] = {
     cuts match {
-      case Some(c) =>
-        data map { l =>
+      case Some(c) ⇒
+        data map { l ⇒
           val attrs = l.vector map (_._2) toSeq
           val dattrs = assignDiscreteValue(attrs, c)
           LabeledVector(l.label, DenseVector(dattrs.toArray))
         }
-      case None => throw new RuntimeException("The IDADiscretizer has not been transformed. " +
+      case None ⇒ throw new RuntimeException("The IDADiscretizer has not been transformed. " +
         "This is necessary to retrieve the cutpoints for future discretizations.")
     }
   }
@@ -120,7 +120,7 @@ object IDADiscretizerTransformer {
       val bins = resultingParameters(Bins)
 
       val nAttrs = FlinkUtils.numAttrs(input)
-      val v = Vector.tabulate(nAttrs)(i => new IntervalHeapWrapper(bins, i))
+      val v = Vector.tabulate(nAttrs)(i ⇒ new IntervalHeapWrapper(bins, i))
 
       val discretized = discretize(input, bins, nAttrs, v)
       instance.cuts = Some(cutPoints(input, v))
@@ -140,7 +140,7 @@ object IDADiscretizerTransformer {
     vs: Seq[Double],
     cuts: Seq[Seq[Double]]): Seq[Double] =
     vs.zipWithIndex map {
-      case (v, i) =>
+      case (v, i) ⇒
         (cuts(i) indexWhere (v <= _)).toDouble
     }
 
@@ -154,12 +154,12 @@ object IDADiscretizerTransformer {
   private[this] def cutPoints(
     data: DataSet[LabeledVector],
     V: Vector[IntervalHeapWrapper]): Vector[Vector[Double]] =
-    data.map { x =>
+    data.map { x ⇒
       val attrs = x.vector map (_._2)
       attrs
         .zipWithIndex
         .foldLeft(V) {
-          case (iv, (v, i)) =>
+          case (iv, (v, i)) ⇒
             iv(i) insertValue v
             iv
         }
@@ -180,14 +180,14 @@ object IDADiscretizerTransformer {
     input: DataSet[LabeledVector],
     bins: Int,
     nAttrs: Int,
-    V: Vector[IntervalHeapWrapper]): DataSet[LabeledVector] = input map { v =>
+    V: Vector[IntervalHeapWrapper]): DataSet[LabeledVector] = input map { v ⇒
     val attrs = v.vector.map(_._2)
     val label = v.label
     // TODO: Check for missing values
     attrs
       .zipWithIndex
       .foldLeft(LabeledVector(label, DenseVector.init(attrs size, -1000))) {
-        case (lv, (x, i)) =>
+        case (lv, (x, i)) ⇒
           //          if (V(i).getNbSamples < s) {
           V(i) insertValue x // insert
           lv.vector.update(i, V(i) getBin x)

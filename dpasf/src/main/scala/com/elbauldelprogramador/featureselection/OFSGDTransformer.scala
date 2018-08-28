@@ -120,12 +120,12 @@ object OFSGDTransformer {
       val nFeatures = resultingParameters(NFeatures)
 
       // TODO: Better way to compute dimensions
-      val dimensionsDS = input.map(_.vector.size).reduce((_, b) => b).collect.head
+      val dimensionsDS = input.map(_.vector.size).reduce((_, b) ⇒ b).collect.head
 
       val values = Array.fill(dimensionsDS)(0.0)
       var weights = WeightVector(DenseVector(values), .0).weights.asBreeze
 
-      val finalWeights = input.map { data =>
+      val finalWeights = input.map { data ⇒
         val vector = data.vector.asBreeze
         val pred = vector dot weights
 
@@ -137,7 +137,7 @@ object OFSGDTransformer {
           // Truncate. Set all but the best nFeatures weights to zero
           if (weights.toArray.count(_ != 0) > nFeatures) {
             val topN = weights.toArray.zipWithIndex.sortBy(-_._1)
-            for (i <- nFeatures until weights.size)
+            for (i ← nFeatures until weights.size)
               weights(topN(i)._2) = 0
           }
         }
@@ -149,9 +149,9 @@ object OFSGDTransformer {
         .toArray
         .zipWithIndex.filter(_._1 != 0)
 
-      input map { x =>
+      input map { x ⇒
         val attrs = x.vector
-        val bestF = indexes.map(x => attrs(x._2))
+        val bestF = indexes.map(x ⇒ attrs(x._2))
         LabeledVector(x.label, DenseVector(bestF))
       }
     }
