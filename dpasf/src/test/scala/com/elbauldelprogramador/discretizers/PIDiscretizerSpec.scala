@@ -17,15 +17,9 @@
 
 package com.elbauldelprogramador.discretizers
 
-import com.elbauldelprogramador.datastructures.Histogram
-import java.util.concurrent.TimeUnit
-
 import com.elbauldelprogramador.BddSpec
-import com.elbauldelprogramador.pojo.{ ElecNormNew, Iris }
-import org.apache.flink.api.common.restartstrategy.RestartStrategies
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.{ ExecutionEnvironment, _ }
+import com.elbauldelprogramador.pojo.ElecNormNew
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.preprocessing.MinMaxScaler

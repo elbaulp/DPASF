@@ -20,12 +20,11 @@ package com.elbauldelprogramador.discretizers
 import java.util
 
 import com.elbauldelprogramador.datastructures.Histogram
-import com.elbauldelprogramador.utils.{ FlinkUtils, InformationTheory }
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import com.elbauldelprogramador.utils.{FlinkUtils, InformationTheory}
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
+import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
+import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer

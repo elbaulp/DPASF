@@ -129,7 +129,6 @@ case class Histogram(
       i < l
     }) {
       val classDist = distribMatrixL1(attrIdx)(i)
-      import scala.collection.JavaConversions._
       for (key ← classDist.keySet) {
         if (key > numClasses) numClasses = key
       }
