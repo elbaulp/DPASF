@@ -53,7 +53,7 @@ class InfoGainSpec extends BddSpec with Serializable {
     Vector(2, 1),
     Vector(3, 0))
 
-  private val tennisDS = env.fromCollection(tennis map { tuple =>
+  private val tennisDS = env.fromCollection(tennis map { tuple ⇒
     val list = tuple.iterator.toList
     val numList = list map (_.toDouble)
     LabeledVector(numList(1), DenseVector(numList.take(1).toArray))
@@ -78,7 +78,7 @@ class InfoGainSpec extends BddSpec with Serializable {
     Vector("1", "1", "20"),
     Vector("1", "0", "10"))
 
-  private val dataSet = env.fromCollection(data map { tuple =>
+  private val dataSet = env.fromCollection(data map { tuple ⇒
     val list = tuple.iterator.toList
     val numList = list map (_.toDouble)
     LabeledVector(numList(2), DenseVector(numList.take(2).toArray))
@@ -95,13 +95,13 @@ class InfoGainSpec extends BddSpec with Serializable {
     Vector(2, 0),
     Vector(1, 1))
 
-  private val gladiatorDS = env.fromCollection(gladiator map { tuple =>
+  private val gladiatorDS = env.fromCollection(gladiator map { tuple ⇒
     val list = tuple.iterator.toList
     val numList = list map (_.toDouble)
     LabeledVector(numList(1), DenseVector(numList.take(1).toArray))
   })
 
-  private val irisDS = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath) map { tuple =>
+  private val irisDS = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath) map { tuple ⇒
     val list = tuple.productIterator.toList
     val numList = list map (_.asInstanceOf[Double])
     LabeledVector(numList(4), DenseVector(numList.take(4).toArray))

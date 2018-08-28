@@ -631,6 +631,7 @@
 //     */
 //    private float getInstanceValue(double value) {
 //        if(decimals > 0) {
+
 //            double mult = Math.pow(10, decimals);
 //            return (float) (Math.round(value * mult) / mult);
 //        }

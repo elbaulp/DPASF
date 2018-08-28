@@ -65,22 +65,21 @@ object InformationTheory {
    * @return true if the splits is acceptable
    */
   def FayyadAndIranisMDL(
-    priorCounts: Map[Int, Double],
+    priorCounts: Seq[Double],
     bestCounts: Seq[Seq[Double]],
     numInstances: Double,
     numCutPoints: Int): Boolean = {
     // Entropy before split
-    val priorH = entropy(priorCounts.values.toSeq)
+    val priorH = entropy(priorCounts)
 
     // Entropy after split
     val h = entropyConditionedOnRows(bestCounts)
 
     // Compute InfoGain
     val gain = priorH - h
-    //    assert(gain != priorH)
 
     // Number of classes occuring in the set
-    val nClasses = priorCounts.keys.size
+    val nClasses = priorCounts.count(_ != 0)
 
     // Number of classes in the left subset
     val nClassesLeft = bestCounts.head.count(_ != 0)

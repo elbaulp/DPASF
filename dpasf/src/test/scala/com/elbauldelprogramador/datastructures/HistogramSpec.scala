@@ -43,8 +43,8 @@ class HistogramSpec extends BddSpec {
       "Should return the correct initial cutpoints" in {
         val h = Histogram(nRows, nCols, min, step)
         val buf = Array.fill(nCols + 1)(0d)
-        for (row <- 0 until 1)
-          for (col <- 0 to nCols)
+        for (row ← 0 until 1)
+          for (col ← 0 to nCols)
             buf.update(col, h.cuts(row, col))
 
         assert(m_CutPointsL1.get(0) === buf)

@@ -17,14 +17,18 @@
 
 package com.elbauldelprogramador.discretizers
 
+import java.util
+
 import com.elbauldelprogramador.datastructures.Histogram
 import com.elbauldelprogramador.utils.{ FlinkUtils, InformationTheory }
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
+import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.ArrayBuffer
-import weka.core.ContingencyTables
 
 /**
  * Partition Incremental Discretization (PiD)
@@ -41,7 +45,7 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
   import PIDiscretizerTransformer._
 
-  private[PIDiscretizerTransformer] var metricsOption: Option[DataSet[Histogram]] = None
+  private[PIDiscretizerTransformer] var metricsOption: Option[DataSet[Vector[Vector[Double]]]] = None
   private[PIDiscretizerTransformer] lazy val step = (parameters(Max) - parameters(Min)) / parameters(L1InitialBins).toDouble
 
   // TODO docs
@@ -120,36 +124,7 @@ object PIDiscretizerTransformer {
     override def fit(
       instance: PIDiscretizerTransformer,
       fitParameters: ParameterMap,
-      input: DataSet[LabeledVector]): Unit = {
-
-      val resultingParameters = instance.parameters ++ fitParameters
-      val l2updateExamples = resultingParameters(L2UpdateExamples)
-      val alpha = resultingParameters(Alpha)
-      val min = resultingParameters(Min)
-      val max = resultingParameters(Max)
-      val l1InitialBins = resultingParameters(L1InitialBins)
-      val initialElems = resultingParameters(InitialElements)
-      val nAttrs = FlinkUtils.numAttrs(input)
-
-      val metric = input.map { x ⇒
-        // (instance, histrogram totalCount)
-        (x, Histogram(nAttrs, l1InitialBins, min, instance.step), 1)
-      }.reduce { (m1, m2) ⇒
-        // Update Layer 1
-        val updatedL1 = updateL1(m1._1, m1._2, instance.step, initialElems, alpha, m1._3)
-
-        //         Update Layer 2 if neccesary
-        val updatedL2 = if (m1._3 % l2updateExamples == 0) {
-          updateL2(m1._1, updatedL1)
-        } else updatedL1
-
-        (m2._1, updatedL2, m1._3 + 1)
-      }.map(_._2)
-
-      //      instance.metricsOption = Some(metric)
-
-      log.info(s"H: ${metric.print}")
-    }
+      input: DataSet[LabeledVector]): Unit = {}
   }
 
   // TODO doc
@@ -160,11 +135,47 @@ object PIDiscretizerTransformer {
       input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
       val resultingParameters = instance.parameters ++ transformParameters
 
-      instance.metricsOption match {
-        case Some(m) ⇒
-          m.print
-          input.map(l ⇒ LabeledVector(l.label + 1, l.vector))
-        case None ⇒ input
+      val l2updateExamples = resultingParameters(L2UpdateExamples)
+      val alpha = resultingParameters(Alpha)
+      val min = resultingParameters(Min)
+      val max = resultingParameters(Max)
+      val l1InitialBins = resultingParameters(L1InitialBins)
+      val initialElems = resultingParameters(InitialElements)
+      val nAttrs = FlinkUtils.numAttrs(input)
+
+      val pid = new PIDiscretize(initialElems, l1InitialBins, min, max, alpha, l2updateExamples)
+
+      val metric = input.map { x ⇒
+        // (instance, histrogram totalCount)
+        (x, Histogram(nAttrs, l1InitialBins, min, instance.step), 1)
+      }.reduce { (m1, m2) ⇒
+
+        // Update Layer 1
+        val x = pid applyDiscretization m1._1
+        val updatedL1 = updateL1(m1._1, m1._2, instance.step, initialElems, alpha, m1._3)
+        import scala.collection.JavaConversions._
+
+        assert(pid.m_Counts.map(_.toSeq) == m1._2.countMatrix.toSeq, "Counts no iguales")
+        assert(pid.m_CutPointsL1.map(_.toSeq) == m1._2.cutMatrixL1.toSeq, "Cuts no iguales")
+        // Update Layer 2 if neccesary
+        val updatedL2 = if (m1._3 % l2updateExamples == 0) {
+          log.info(s"TotalCount: ${m1._3}")
+          log.info(s"CutMatrix: ${m1._2}")
+          updateL2(m1._1, updatedL1)
+        } else updatedL1
+
+        (m2._1, updatedL2, m1._3 + 1)
+      }.map(_._2.cutMatrixL2.map(_.toVector).toVector)
+
+      input.mapWithBcVariable(metric) { (lv, cuts) ⇒
+
+        val LabeledVector(label, vector) = lv
+        val discretized = vector.map {
+          case (i, v) ⇒
+            // Get the bin
+            cuts(i).indexWhere(v <= _).toDouble
+        }
+        LabeledVector(label, DenseVector(discretized.toArray))
       }
     }
   }
@@ -227,152 +238,167 @@ object PIDiscretizerTransformer {
   private[this] def updateL2(
     lv: LabeledVector,
     h: Histogram): Histogram = {
+    h.clearCutsL2(h.cutsSize)
 
-    h.clearCutsL2
+    var newH = h
 
     for (i ← (lv.vector.size - 1) to 0 by -1) {
-      val attrCuts = subSetCuts(i, 0, h.nColumns(i), h)
+      val attrCuts = subSetCuts(i, 0, newH.nColumns(i), newH)
 
       attrCuts match {
         case Some(c) ⇒
-          val lastPoint = h.cuts(i, h.nColumns(i) - 1)
-          h.clearCutsL2(i)
-          if (lastPoint != c(c.size - 1)) {
-            h.updateCutsL2(i, c.to[ArrayBuffer])
-            h.updateCutsL2(i, h.nColumns(i) - 1, lastPoint)
+          val lastPoint = newH.cuts(i, newH.nColumns(i) - 1)
+          if (lastPoint != c.last) {
+            newH.addNewCutsL2(i, c.size + 1)
+            newH.updateCutsL2(i, c.to[ArrayBuffer])
+            newH.appendCutL2(i, lastPoint)
           } else {
-            h.updateCutsL2(i, c.to[ArrayBuffer])
+            newH.addNewCutsL2(i, c.size)
+            newH.updateCutsL2(i, c.to[ArrayBuffer])
           }
         case None ⇒
-          h.clearCutsL2(i)
-          for (j ← 0 until h.nColumns(i)) {
-            h.updateCutsL2(i, j, h.cuts(i, j))
-          }
+          newH.addNewCutsL2(i, newH.nColumns(i))
+          // Copy cuts from L1 to L2
+          newH.updateCutsL2(i, newH.cuts(i))
       }
-      updateDistributionsL2(i, h.cutsL2(i))(h)
+      newH = updateDistributionsL2(i, newH.cutsL2(i))(newH)
     }
-
-    //val cuts = lv.vector.foldRight(Seq.empty[Double]) {
-    //  case ((i, _), z) =>
-    //    val attrCuts = subSetCuts(i, 0, h.nColumns(i), h)
-    //
-    //    attrCuts match {
-    //      case Some(c) => c
-    //      case None =>
-    //        h.clearCutsL2(i)
-    //        for (j <- 0 until h.nColumns(i)) {
-    //          h.updateCutsL2(i, j, h.cuts(i, j))
-    //        }
-    //    }
-    //}
-    h
-
+    newH
   }
 
   private[this] def updateDistributionsL2(attr: Int, newPoints: Seq[Double])(h: Histogram): Histogram = {
-    ???
+
+    def updateDistributionsL22(att: Int, newpoints: Array[Double]) = {
+      var cont: Boolean = true
+      val intervals: util.List[util.Map[Int, Double]] = new util.ArrayList[util.Map[Int, Double]](newPoints.length + 1)
+      var interv: util.Map[Int, Double] = new util.HashMap[Int, Double]
+      val oldpoints = h.cuts(attr)
+      var i: Int = 0
+      var j: Int = 0
+      while ({
+        i < newPoints.length && cont
+      }) {
+        while ({
+          cont && oldpoints(j) <= newPoints(i)
+        }) {
+          val aux = h.distribMatrixL1(attr)(j)
+          // Aggregate by sum the maps
+          import scala.collection.JavaConversions._
+          for (key ← aux.keySet) {
+            if (interv.containsKey(key)) interv.update(key, aux(key) + interv.get(key))
+            else interv.update(key, aux(key))
+          }
+          j += 1
+          if (j >= oldpoints.size) {
+            cont = false // get out
+          }
+        }
+        intervals.add(interv)
+        interv = new util.HashMap[Int, Double]
+
+        {
+          i += 1;
+          i - 1
+        }
+      }
+      /*int sum = 0;
+          for (Iterator iterator = intervals.iterator(); iterator.hasNext();) {
+          Map<Integer,Float> map = (Map<Integer,Float>) iterator.next();
+          for (Iterator iterator2 = map.values().iterator(); iterator2.hasNext();) {
+            Float e = (Float) iterator2.next();
+            sum += e;
+          }
+          }*/
+      intervals
+    }
+
+    val javaIntervals = updateDistributionsL22(attr, newPoints.toArray)
+
+    val newDistribL2 = ArrayBuffer.empty[Map[Int, Double]]
+    val interval = collection.mutable.Map.empty[Int, Double]
+    var j = 0
+    var cont = true
+    for (i ← newPoints.indices) {
+      //      val r = h.cuts(attr).takeWhile(_ <= newPoints(i)).size
+      while (cont && h.cuts(attr, j) <= newPoints(i)) {
+        val old = h.classDistribL1(attr, j)
+        for (key ← old.keySet) {
+          if (interval.contains(key))
+            interval(key) = interval(key) + old(key)
+          else
+            interval(key) = old(key)
+        }
+        j += 1
+        if (j >= h.cuts(attr).size) cont = false
+      }
+      newDistribL2 append interval.toMap
+      interval.clear
+    }
+    h.updateClassDistribL2(attr, newDistribL2)
+    h
   }
 
   private[this] def subSetCuts(index: Int, first: Int, last: Int, h: Histogram): Option[Seq[Double]] = {
 
     if ((last - first) < 2) {
-      log.error("(last - first) < 2")
+      //      log.error("(last - first) < 2")
       None
     } else {
       // Greatest class observed till the moment
-      val nClasses = h.greatestClass(index, first, last)
+      //      val nClasses = h.greatestClass(index, first, last)
       val priorCounts = h.classCounts(index, first, last)
-      val priorMatrix = Seq.tabulate(nClasses)(priorCounts.getOrElse(_, 0d))
-      val priorH = InformationTheory.entropy(priorCounts.values.toVector)
+      //      val priorMatrix = Seq.tabulate(nClasses)(priorCounts)
+      val priorH = InformationTheory.entropy(priorCounts.last)
 
       // Find best Entropy
-      val (counts1, bestH, bestIndex, nCuts) = h.distribMatrixL1(index)
+      val (_, bestH, bestIndex, nCuts, bestCounts) = h.distribMatrixL1(index)
         .zipWithIndex
         .slice(first, last - 1) // last - 1
         //  (counts,                 counts,      bestEntropy, bestIndex, nCutpoints)
-        ./:((Array.tabulate(2)(i ⇒ if (i == 1) priorCounts.values.toArray else Array.fill(nClasses)(0d)), priorH, 0, 0)) {
-          case (z, (m, i)) ⇒
-            import scala.collection.JavaConversions._
-            for (entry ← m.entrySet) {
-              z._1(0)(entry.getKey) += entry.getValue
-              z._1(1)(entry.getKey) -= entry.getValue
-            }
-            //          val counts = m./:(z) { (z, x) =>
-            //            val z1Updated = z._1.updated(x._1, z._1(x._1) + x._2)
-            //            val z2Updated = z._2.updated(x._1, z._2(x._1) - x._2)
-            //
-            //            (z1Updated, z2Updated, z._3, z._4, z._5)
-            //          }
-            val currentCut = h.cuts(index, i)
-            val contingencyMatrix = z._1.map(_.toSeq).toSeq
-            val currH = InformationTheory.entropyConditionedOnRows(contingencyMatrix)
+        ./:(
+          priorCounts.map(_.toArray).toArray, // Counts
+          priorH, // BestEntropy
+          0, // BestIndex
+          0, // NCuts
+          Vector.empty[Vector[Double]]) { // BestCounts
+            case (z, (m, i)) ⇒
+              import scala.collection.JavaConversions._
+              for (entry ← m.entrySet) {
+                z._1(0)(entry.getKey) += entry.getValue
+                z._1(1)(entry.getKey) -= entry.getValue
+              }
 
-            if (currH < z._2)
-              (z._1, currH, i, i + 1)
-            else
-              (z._1, z._2, z._3, i + 1)
-        }
-      // (List(0.0, 0.0),List(494.0, 506.0),0.9998961234639354,0,0)
-      import weka.core.ContingencyTables
-      import java.util
-      // Find best entropy.// Find best entropy.
+              val currentCounts = z._1.map(_.toVector).toVector
+              val currentCut = h.cuts(index, i)
+              val contingencyMatrix = z._1.map(_.toSeq).toSeq
+              val currH = InformationTheory.entropyConditionedOnRows(contingencyMatrix)
 
-      //      val bestCounts = new Array[Array[Double]](2, numClasses)
-      var bestEntropy = priorH
-      val bestCounts = Array.fill(2)(Array.fill(nClasses)(0d))
-      val counts = Array.tabulate(2)(i ⇒ if (i == 1) priorCounts.values.toArray else Array.fill(nClasses)(0d))
-      var i = first
-      var bestCutpoint = Map.empty[Int, Double]
-      var bestI = 0
-      var numCutPoints = 0
-
-      while ({
-        i < (last - 1)
-      }) {
-        val classDist = h.distribMatrixL1(index)(i)
-        import scala.collection.JavaConversions._
-        for (entry ← classDist.entrySet) {
-          counts(0)(entry.getKey) += entry.getValue
-          counts(1)(entry.getKey) -= entry.getValue
-        }
-        val currCut = h.distribMatrixL1(index)(i)
-        val currH = InformationTheory.entropyConditionedOnRows(counts.map(_.toSeq).toSeq) //ContingencyTables.entropyConditionedOnRows(counts)
-        if (currH < bestEntropy) {
-          bestCutpoint = currCut
-          bestEntropy = currH
-          bestI = i
-          System.arraycopy(counts(0), 0, bestCounts(0), 0, nClasses)
-          System.arraycopy(counts(1), 0, bestCounts(1), 0, nClasses)
-        }
-        numCutPoints += 1
-
-        {
-          i += 1; i - 1
-        }
-      }
-
-      assert(bestI == bestIndex)
+              if (currH < z._2)
+                (z._1, currH, i, i + 1, currentCounts)
+              else
+                (z._1, z._2, z._3, i + 1, z._5)
+          }
 
       // Check if gain is zero
       if ((priorH - bestH) <= 0) {
-        log.error("(priorH - bestH) <= 0")
+        //        log.error("(priorH - bestH) <= 0")
         None
       } else {
-        log.error("Else gain")
+        //        log.error("Else gain")
         // Check if split is accepted
         // https://github.com/tmadl/sklearn-expertsys/blob/master/Discretization/MDLP.py
         if (InformationTheory.FayyadAndIranisMDL(
-          priorCounts,
-          counts1.map(_.toSeq).toSeq,
-          priorMatrix.sum,
+          priorCounts.last,
+          bestCounts,
+          priorCounts.last.sum,
           nCuts)) {
           log.error("FAyyad meets")
           // Select splitted points for the left and right subsets
-          log.error(s"Calling left /w (first, best+1) = ($first, ${bestIndex + 1}")
+          //          log.error(s"Calling left /w (first, best+1) = ($first, ${bestIndex + 1}")
           val left = subSetCuts(index, first, bestIndex + 1, h)
-          log.error(s"Calling right /w (best+1, last) = (${bestIndex + 1}, $last")
+          //          log.error(s"Calling right /w (best+1, last) = (${bestIndex + 1}, $last")
           val right = subSetCuts(index, bestIndex + 1, last, h)
-          log.error(s"Left & right: $left, $right")
+          //          log.error(s"Left & right: $left, $right")
 
           // Merge process
           val bestCut = h.cuts(index, bestIndex)
@@ -387,11 +413,11 @@ object PIDiscretizerTransformer {
             case (Some(l), Some(r)) ⇒
               (l :+ bestCut) ++ r
           }
-          log.error(s"FAyyad meets for this cut: $cutpoints")
+          //          log.error(s"FAyyad meets for this cut: $cutpoints")
           Some(cutpoints)
 
         } else {
-          log.error("FAyyad does not meets")
+          //          log.error("FAyyad does not meets")
           None
         }
       }

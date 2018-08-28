@@ -20,7 +20,7 @@ class LOFDiscretizerTransformerSpec extends BddSpec with Serializable {
   ))
 
   val data = env.readCsvFile[ElecNormNew](getClass.getResource("/elecNormNew.arff").getPath)
-  val dataSet = data map { tuple =>
+  val dataSet = data map { tuple ⇒
     val list = tuple.productIterator.toList
     val numList = list map (_.asInstanceOf[Double])
     LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
