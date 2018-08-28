@@ -86,7 +86,7 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
 object PIDiscretizerTransformer {
 
-  private[this] val log = LoggerFactory.getLogger(this.getClass)
+//  private[this] val log = LoggerFactory.getLogger(this.getClass)
 
   // ========================================== Parameters =========================================
   private[PIDiscretizerTransformer] case object L2UpdateExamples extends Parameter[Int] {
@@ -142,24 +142,16 @@ object PIDiscretizerTransformer {
       val initialElems = resultingParameters(InitialElements)
       val nAttrs = FlinkUtils.numAttrs(input)
 
-      val pid = new PIDiscretize(initialElems, l1InitialBins, min, max, alpha, l2updateExamples)
-
       val metric = input.map { x ⇒
         // (instance, histrogram totalCount)
         (x, Histogram(nAttrs, l1InitialBins, min, instance.step), 1)
       }.reduce { (m1, m2) ⇒
 
         // Update Layer 1
-        val x = pid applyDiscretization m1._1
         val updatedL1 = updateL1(m1._1, m1._2, instance.step, initialElems, alpha, m1._3)
-        import scala.collection.JavaConversions._
 
-        assert(pid.m_Counts.map(_.toSeq) == m1._2.countMatrix.toSeq, "Counts no iguales")
-        assert(pid.m_CutPointsL1.map(_.toSeq) == m1._2.cutMatrixL1.toSeq, "Cuts no iguales")
-        // Update Layer 2 if neccesary
+        // Update Layer 2 if necesary
         val updatedL2 = if (m1._3 % l2updateExamples == 0) {
-          log.info(s"TotalCount: ${m1._3}")
-          log.info(s"CutMatrix: ${m1._2}")
           updateL2(m1._1, updatedL1)
         } else updatedL1
 
@@ -266,53 +258,6 @@ object PIDiscretizerTransformer {
   }
 
   private[this] def updateDistributionsL2(attr: Int, newPoints: Seq[Double])(h: Histogram): Histogram = {
-
-    def updateDistributionsL22(att: Int, newpoints: Array[Double]) = {
-      var cont: Boolean = true
-      val intervals: util.List[util.Map[Int, Double]] = new util.ArrayList[util.Map[Int, Double]](newPoints.length + 1)
-      var interv: util.Map[Int, Double] = new util.HashMap[Int, Double]
-      val oldpoints = h.cuts(attr)
-      var i: Int = 0
-      var j: Int = 0
-      while ({
-        i < newPoints.length && cont
-      }) {
-        while ({
-          cont && oldpoints(j) <= newPoints(i)
-        }) {
-          val aux = h.distribMatrixL1(attr)(j)
-          // Aggregate by sum the maps
-          import scala.collection.JavaConversions._
-          for (key ← aux.keySet) {
-            if (interv.containsKey(key)) interv.update(key, aux(key) + interv.get(key))
-            else interv.update(key, aux(key))
-          }
-          j += 1
-          if (j >= oldpoints.size) {
-            cont = false // get out
-          }
-        }
-        intervals.add(interv)
-        interv = new util.HashMap[Int, Double]
-
-        {
-          i += 1;
-          i - 1
-        }
-      }
-      /*int sum = 0;
-          for (Iterator iterator = intervals.iterator(); iterator.hasNext();) {
-          Map<Integer,Float> map = (Map<Integer,Float>) iterator.next();
-          for (Iterator iterator2 = map.values().iterator(); iterator2.hasNext();) {
-            Float e = (Float) iterator2.next();
-            sum += e;
-          }
-          }*/
-      intervals
-    }
-
-    val javaIntervals = updateDistributionsL22(attr, newPoints.toArray)
-
     val newDistribL2 = ArrayBuffer.empty[Map[Int, Double]]
     val interval = collection.mutable.Map.empty[Int, Double]
     var j = 0
@@ -339,21 +284,16 @@ object PIDiscretizerTransformer {
 
   private[this] def subSetCuts(index: Int, first: Int, last: Int, h: Histogram): Option[Seq[Double]] = {
 
-    if ((last - first) < 2) {
-      //      log.error("(last - first) < 2")
+    if ((last - first) < 2)
       None
-    } else {
+    else {
       // Greatest class observed till the moment
-      //      val nClasses = h.greatestClass(index, first, last)
       val priorCounts = h.classCounts(index, first, last)
-      //      val priorMatrix = Seq.tabulate(nClasses)(priorCounts)
       val priorH = InformationTheory.entropy(priorCounts.last)
-
       // Find best Entropy
       val (_, bestH, bestIndex, nCuts, bestCounts) = h.distribMatrixL1(index)
         .zipWithIndex
-        .slice(first, last - 1) // last - 1
-        //  (counts,                 counts,      bestEntropy, bestIndex, nCutpoints)
+        .slice(first, last - 1)
         ./:(
           priorCounts.map(_.toArray).toArray, // Counts
           priorH, // BestEntropy
@@ -368,7 +308,6 @@ object PIDiscretizerTransformer {
               }
 
               val currentCounts = z._1.map(_.toVector).toVector
-              val currentCut = h.cuts(index, i)
               val contingencyMatrix = z._1.map(_.toSeq).toSeq
               val currH = InformationTheory.entropyConditionedOnRows(contingencyMatrix)
 
@@ -379,25 +318,18 @@ object PIDiscretizerTransformer {
           }
 
       // Check if gain is zero
-      if ((priorH - bestH) <= 0) {
-        //        log.error("(priorH - bestH) <= 0")
+      if ((priorH - bestH) <= 0)
         None
-      } else {
-        //        log.error("Else gain")
+       else {
         // Check if split is accepted
-        // https://github.com/tmadl/sklearn-expertsys/blob/master/Discretization/MDLP.py
         if (InformationTheory.FayyadAndIranisMDL(
           priorCounts.last,
           bestCounts,
           priorCounts.last.sum,
           nCuts)) {
-          log.error("FAyyad meets")
           // Select splitted points for the left and right subsets
-          //          log.error(s"Calling left /w (first, best+1) = ($first, ${bestIndex + 1}")
           val left = subSetCuts(index, first, bestIndex + 1, h)
-          //          log.error(s"Calling right /w (best+1, last) = (${bestIndex + 1}, $last")
           val right = subSetCuts(index, bestIndex + 1, last, h)
-          //          log.error(s"Left & right: $left, $right")
 
           // Merge process
           val bestCut = h.cuts(index, bestIndex)
@@ -412,13 +344,10 @@ object PIDiscretizerTransformer {
             case (Some(l), Some(r)) ⇒
               (l :+ bestCut) ++ r
           }
-          //          log.error(s"FAyyad meets for this cut: $cutpoints")
           Some(cutpoints)
 
-        } else {
-          //          log.error("FAyyad does not meets")
+        } else
           None
-        }
       }
     }
   }
