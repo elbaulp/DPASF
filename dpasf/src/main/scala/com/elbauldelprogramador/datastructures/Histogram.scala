@@ -22,15 +22,15 @@ import scala.collection.mutable.ArrayBuffer
 // TODO: DOC
 // TODO: TEST
 case class Histogram(
-                      nRows: Int,
-                      nCols: Int,
-                      min: Int,
-                      step: Double,
-                      countMatrix: Array[ArrayBuffer[Double]],
-                      cutMatrixL1: Array[ArrayBuffer[Double]],
-                      distribMatrixL1: Array[ArrayBuffer[Map[Int, Double]]],
-                      distribMatrixL2: Array[ArrayBuffer[Map[Int, Double]]],
-                      cutMatrixL2: ArrayBuffer[ArrayBuffer[Double]])
+  nRows: Int,
+  nCols: Int,
+  min: Int,
+  step: Double,
+  countMatrix: Array[ArrayBuffer[Double]],
+  cutMatrixL1: Array[ArrayBuffer[Double]],
+  distribMatrixL1: Array[ArrayBuffer[Map[Int, Double]]],
+  distribMatrixL2: Array[ArrayBuffer[Map[Int, Double]]],
+  cutMatrixL2: ArrayBuffer[ArrayBuffer[Double]])
   extends Serializable {
 
   def updateCounts(row: Int, col: Int, value: Double): Unit =
@@ -150,16 +150,16 @@ case class Histogram(
   }
 
   def classCounts(attrIdx: Int, first: Int, l: Int): Vector[Vector[Double]] = {
-      val nClasses = greatestClass(attrIdx, first, l)
-      // https://stackoverflow.com/a/1263028
-      val counts = distribMatrixL1(attrIdx).slice(first, l)
+    val nClasses = greatestClass(attrIdx, first, l)
+    // https://stackoverflow.com/a/1263028
+    val counts = distribMatrixL1(attrIdx).slice(first, l)
 
-      val r = mergeMap(counts)((x, y) ⇒ x + y)
+    val r = mergeMap(counts)((x, y) ⇒ x + y)
 
-      val row0 = Vector.fill(nClasses)(0d)
-      val row1 = Vector.tabulate(nClasses)(k ⇒ r.getOrElse(k, 0d))
+    val row0 = Vector.fill(nClasses)(0d)
+    val row1 = Vector.tabulate(nClasses)(k ⇒ r.getOrElse(k, 0d))
 
-      Vector(row0, row1)
+    Vector(row0, row1)
   }
 
   // https://stackoverflow.com/a/1264772

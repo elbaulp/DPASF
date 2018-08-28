@@ -19,9 +19,9 @@ package com.elbauldelprogramador.featureselection
 
 import breeze.linalg.norm
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap, WeightVector}
-import org.apache.flink.ml.math.{Breeze, DenseVector}
-import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
+import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap, WeightVector }
+import org.apache.flink.ml.math.{ Breeze, DenseVector }
+import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 
 /**
  * Online Feature Selection (OFS) using a Linear Classifier with sparse
