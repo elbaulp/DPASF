@@ -20,10 +20,10 @@ package com.elbauldelprogramador.datastructures
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Data Structure that stores all information needed by the [[com.elbauldelprogramador.discretizers.PIDiscretizerTransformer]]
-  * algorithm.
-  *
-  */
+ * Data Structure that stores all information needed by the [[com.elbauldelprogramador.discretizers.PIDiscretizerTransformer]]
+ * algorithm.
+ *
+ */
 case class Histogram(
   nRows: Int,
   nCols: Int,
@@ -35,7 +35,7 @@ case class Histogram(
   distribMatrixL2: Array[ArrayBuffer[Map[Int, Double]]],
   cutMatrixL2: ArrayBuffer[ArrayBuffer[Double]])
   extends Serializable {
-  
+
   def updateCounts(row: Int, col: Int, value: Double): Unit =
     countMatrix(row).update(col, value)
 

@@ -1,5 +1,3 @@
-package com.elbauldelprogramador.featureselection
-
 /*
  * Copyright (C) 2018  Alejandro Alcalde
  *
@@ -16,6 +14,7 @@ package com.elbauldelprogramador.featureselection
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+package com.elbauldelprogramador.featureselection
 
 import java.util.concurrent.TimeUnit
 

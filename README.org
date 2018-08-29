@@ -13,10 +13,9 @@ This is a list of all resources that helped me to build this library:
 - [[https://stackoverflow.com/a/35105461/1612432][Information Gain Explanation]]
 - [[http://www.cs.csi.cuny.edu/~imberman/ai/Entropy%2520and%2520Information%2520Gain.htm][Entropy and Information Gain]]
 - [[https://github.com/tmadl/sklearn-expertsys/blob/master/Discretization/MDLP.py][tmadl/sklearn-expertsys: Discretization MDLP]]
+- [[https://github.com/shiralkarprashant/FCBF][FCBF python implementation]]
 
 
 * Used DataSets
-
-
 - [[https://archive.ics.uci.edu/ml/datasets/Iris/][Iris]]
 - [[https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary.html#svmguide3][SvmGuide3]]
