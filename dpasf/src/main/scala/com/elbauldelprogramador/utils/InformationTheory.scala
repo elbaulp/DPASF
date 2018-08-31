@@ -1,13 +1,25 @@
 package com.elbauldelprogramador.utils
 
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
+import breeze.linalg.DenseVector
+import org.apache.flink.api.scala._
+import org.apache.flink.ml.math.Breeze._
+import org.apache.flink.ml.math.{ Vector ⇒ FlinkVec }
+
 /**
  * Object containing utility functions for Information Theory
  */
-object InformationTheory {
+case object InformationTheory {
+  import IFImplicits._
+
+  private[this] val log = LoggerFactory.getLogger(getClass)
 
   private[this] val log2 = math.log(2)
 
   private[this] def log2(a: Double): Double = math.log(a) / log2
+  private[this] def log2(a: DenseVector[Double]): DenseVector[Double] = a.map(log2)
 
   private[this] def log(x: Double): Double =
     if (x > 0) math.log(x)
@@ -37,6 +49,32 @@ object InformationTheory {
     entropy(freqs, freqs.sum)
 
   /**
+   * Computes entropy of the given single column [[DataSet]]
+   *
+   * @param x [[Dataset]] of [[LabeledVector]] with one column and its label
+   * @return Column entropy
+   */
+  def entropy(xy: DataSet[LabeledVector]): Double = {
+    val x = xy.map(_.vector(0))
+    val p = probs(x).toArray.asBreeze
+    p.dot(-log2(p))
+  }
+
+  /**
+   * Compute the probabilities of each value on the given [[DataSet]]
+   *
+   * @param x single colum [[DataSet]]
+   * @return Sequence of probabilites for each value
+   */
+  private[this] def probs(x: DataSet[Double]): Seq[Double] = {
+    val counts = x.groupBy(x ⇒ x)
+      .reduceGroup(_.size.toDouble).collect
+    val total = counts.reduce(_ + _)
+
+    counts.map(_ / total)
+  }
+
+  /**
    * Computes conditional entropy of the columns given
    * the rows.
    *
@@ -53,6 +91,47 @@ object InformationTheory {
         h1 + h2
     }) / (total * log2)
   }
+
+  /**
+    * Computes conditional entropy H(X|Y) for the given one
+    * column [[DataSet]]
+    *
+    * @param xy [[LabeledVector]] [[DataSet]] with one column
+    * @return Conditional Entropy H(X|Y)
+    */
+  def conditionalEntropy(xy: DataSet[LabeledVector]): Double = {
+    val y = xy map (_.label)
+    val p = probs(y).toArray.asBreeze
+    val values = y.distinct.collect
+    val condH = for (i ← values)
+      yield entropy(xy.filter(_.label == i))
+
+    p.dot(seq2Breeze(condH))
+  }
+
+  def mutualInformation(xy: DataSet[LabeledVector]): DataSet[Double] = {
+    val hx = entropy(xy)
+    val condH = conditionalEntropy(xy)
+    ???
+  }
+
+  /**
+   * Computes 'symmetrical uncertainty' (SU) - a symmetric mutual information measure.
+   *
+   * It is defined as SU(X, y) = 2 * (IG(X|Y) / (H(X) + H(Y)))
+   *
+   * @param xy [[LabeledVector]] with one feature and class label
+   * @return SU value
+   */
+  def symmetricalUncertainty(xy: DataSet[LabeledVector]): DataSet[Double] = {
+    val mu = mutualInformation(xy)
+    val hx = ???
+    val hy = ???
+    ???
+  }
+  //  def symmetricalUncertainy(x: FlinkVec, y: Seq[Double]): Double = {
+  //    2d * mutualInformation(x) / (entropy(x) + entropy(y))
+  //  }
 
   /**
    * Test using Fayyad and Irani's MDL criterion.
@@ -98,4 +177,14 @@ object InformationTheory {
     //    gain > ((log2(numInstances - 1) + delta) / numInstances)
     gain > ((log2(numCutPoints - 1) + delta) / numInstances)
   }
+
+
+}
+
+object IFImplicits {
+  // Implicits
+  //implicit def flinkVec2Vec(x: FlinkVec): Vector[Double] = x.toVector
+  implicit def linalgVec2Vec(x: DenseVector[Double]): Seq[Double] = x.toSeq
+  implicit def seq2Breeze(x: Seq[Double]): DenseVector[Double] = x.toArray.asBreeze
+  //implicit def vec2LinalgVec(x: Seq[Double]): DenseVector[Double] = DenseVector(x.toArray)
 }
