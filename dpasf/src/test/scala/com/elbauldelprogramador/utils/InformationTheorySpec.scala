@@ -31,6 +31,12 @@ class InformationTheorySpec extends BddSpec with Serializable {
     LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
   }
 
+  // https://stackoverflow.com/a/11107546/1612432
+  private def truncateAt(n: Double, p: Int): Double = {
+    val s = math pow (10, p)
+    (math floor n * s) / s
+  }
+
   val column0 = dataSet.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(0))))
 
   "Informaion Theroy Spec" - {
@@ -55,6 +61,36 @@ class InformationTheorySpec extends BddSpec with Serializable {
     "When computing Symmetrical Uncertainty on the first column with label" - {
       "Should be 0.026560697288523276" in {
         assert(symmetricalUncertainty(column0) === 0.026560697288523276)
+      }
+    }
+
+    "When computing Symmetrical Uncertainty on the whole Abalone Dataset" - {
+      """Should be [
+              0.026560697288523276,
+              0.06473920415289718,
+              0.07117682463410091,
+              0.09063844964208025,
+              0.11157317642876234,
+              0.08092568050702133,
+              0.07495399595384908,
+              0.09506775221909011
+         ]""" in {
+        val expected = List(
+          0.026560697288523276,
+          0.06473920415289718,
+          0.07117682463410091,
+          0.09063844964208025,
+          0.11157317642876234,
+          0.08092568050702133,
+          0.07495399595384908,
+          0.09506775221909011).map(truncateAt(_, 6))
+
+        val su = for (i ← 0 until 8) yield {
+          val attr = dataSet.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(i))))
+          InformationTheory.symmetricalUncertainty(attr)
+        }
+
+        assert(su.map(truncateAt(_, 6)) === expected)
       }
     }
   }

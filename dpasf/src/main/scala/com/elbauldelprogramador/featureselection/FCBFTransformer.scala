@@ -80,11 +80,10 @@ object FCBFTransformer {
 
       // Phase 1, calculate SU (symmetrical_uncertainty) for each Feature
       // w.r.t the class (C-Correlation)
-      val y = input.map(_.label)
-      val f = input.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(0))))
-      val su = for (i ← 0 to nAttrs)
-        yield InformationTheory.symmetricalUncertainty(f)
-      log.info(s"SU ${y.print}")
+      val su = for (i ← 0 until nAttrs) yield {
+        val attr = input.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(i))))
+        InformationTheory.symmetricalUncertainty(attr)
+      }
     }
   }
 
