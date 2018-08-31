@@ -55,6 +55,7 @@ case object InformationTheory {
    * @return Column entropy
    */
   def entropy(xy: DataSet[LabeledVector])(implicit d: DummyImplicit): Double =
+    // Dummy implicit to prevent double definition error with entropy(x: DataSet[Double]): Double
     entropy(xy map (_.vector(0)))
 
   /**

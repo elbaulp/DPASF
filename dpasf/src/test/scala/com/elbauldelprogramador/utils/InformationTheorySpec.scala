@@ -13,7 +13,7 @@ class InformationTheorySpec extends BddSpec with Serializable {
 
   private val env = ExecutionEnvironment.createLocalEnvironment()
 
-  env.setParallelism(1)
+  env.setParallelism(4)
   env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
     3, // number of restart attempts
     Time.of(10, TimeUnit.SECONDS) // delay
@@ -49,6 +49,12 @@ class InformationTheorySpec extends BddSpec with Serializable {
     "When computing Mutual Information on the first column with label" - {
       "Should be 0.02586206320370854" in {
         assert(mutualInformation(column0) === 0.02586206320370854)
+      }
+    }
+
+    "When computing Symmetrical Uncertainty on the first column with label" - {
+      "Should be 0.026560697288523276" in {
+        assert(symmetricalUncertainty(column0) === 0.026560697288523276)
       }
     }
   }
