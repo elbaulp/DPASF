@@ -49,16 +49,6 @@ case object InformationTheory {
     entropy(freqs, freqs.sum)
 
   /**
-   * Computes entropy of the given single column [[DataSet]]
-   *
-   * @param x [[Dataset]] of [[LabeledVector]] with one column and its label
-   * @return Column entropy
-   */
-  def entropy(xy: DataSet[LabeledVector])(implicit d: DummyImplicit): Double =
-    // Dummy implicit to prevent double definition error with entropy(x: DataSet[Double]): Double
-    entropy(xy map (_.vector(0)))
-
-  /**
    * Computes entropy of the a single-column [[DataSet]]
    *
    * @param x [[DataSet]] with one column
@@ -102,42 +92,47 @@ case object InformationTheory {
   }
 
   /**
-   * Computes conditional entropy H(X|Y) for the given one
-   * column [[DataSet]]
+   * Computes conditional entropy H(X|Y) for the given [[DataSet]]
    *
-   * @param xy [[LabeledVector]] [[DataSet]] with one column
+   * @param xy [[DataSet]] with two columns, its a (Double, Double), where
+   * Y should be on the left, X on the right in order to compute H(X|Y)
    * @return Conditional Entropy H(X|Y)
    */
-  def conditionalEntropy(xy: DataSet[LabeledVector]): Double = {
-    val y = xy map (_.label)
+  def conditionalEntropy(xy: DataSet[(Double, Double)]): Double = {
+    val y = xy map (_._1)
     val p = probs(y).toArray.asBreeze
     val values = y.distinct.collect
     val condH = for (i ← values)
-      yield entropy(xy.filter(_.label == i))
+      yield entropy(xy.filter(_._1 == i).map(_._2))
 
     p.dot(seq2Breeze(condH))
   }
 
-  def mutualInformation(xy: DataSet[LabeledVector]): Double =
-    entropy(xy) - conditionalEntropy(xy)
+  /**
+   * Returns the Mutual Information for the given two columns [[DataSet]]
+   *
+   * Mutual Information is defined as H(X) - H(X|Y)
+   *
+   * @param xy [[DataSet]] with two colums, its a (Double, Double), where
+   * Y should be on the left and X on the right.
+   * @return Mutual Information
+   */
+  def mutualInformation(xy: DataSet[(Double, Double)]): Double =
+    entropy(xy.map(_._2)) - conditionalEntropy(xy)
 
   /**
    * Computes 'symmetrical uncertainty' (SU) - a symmetric mutual information measure.
    *
    * It is defined as SU(X, y) = 2 * (IG(X|Y) / (H(X) + H(Y)))
    *
-   * @param xy [[LabeledVector]] with one feature and class label
+   * @param xy [[DataSet]] with two features
    * @return SU value
    */
-  def symmetricalUncertainty(xy: DataSet[LabeledVector]): Double = {
-    val y = xy map (_.label)
-    val x = xy map (_.vector(0))
+  def symmetricalUncertainty(xy: DataSet[(Double, Double)]): Double = {
+    val y = xy map (_._1)
+    val x = xy map (_._2)
     2 * mutualInformation(xy) / (entropy(x) + entropy(y))
   }
-
-  //  def symmetricalUncertainy(x: FlinkVec, y: Seq[Double]): Double = {
-  //    2d * mutualInformation(x) / (entropy(x) + entropy(y))
-  //  }
 
   /**
    * Test using Fayyad and Irani's MDL criterion.

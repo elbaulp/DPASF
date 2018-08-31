@@ -37,12 +37,12 @@ class InformationTheorySpec extends BddSpec with Serializable {
     (math floor n * s) / s
   }
 
-  val column0 = dataSet.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(0))))
+  val column0 = dataSet.map(lv ⇒ (lv.label, lv.vector(0)))
 
   "Informaion Theroy Spec" - {
     "When computing entropy for the first column of Abalone" - {
       "Should return entropy H(X) equal to 0.9474026952708241" in {
-        assert(entropy(column0) === 0.9474026952708241)
+        assert(entropy(column0.map(_._2)) === 0.9474026952708241)
       }
     }
 
@@ -86,7 +86,7 @@ class InformationTheorySpec extends BddSpec with Serializable {
           0.09506775221909011).map(truncateAt(_, 6))
 
         val su = for (i ← 0 until 8) yield {
-          val attr = dataSet.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(i))))
+          val attr = dataSet.map(lv ⇒ (lv.label, lv.vector(i)))
           InformationTheory.symmetricalUncertainty(attr)
         }
 
