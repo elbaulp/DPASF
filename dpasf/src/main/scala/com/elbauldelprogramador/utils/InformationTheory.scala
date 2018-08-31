@@ -93,12 +93,12 @@ case object InformationTheory {
   }
 
   /**
-    * Computes conditional entropy H(X|Y) for the given one
-    * column [[DataSet]]
-    *
-    * @param xy [[LabeledVector]] [[DataSet]] with one column
-    * @return Conditional Entropy H(X|Y)
-    */
+   * Computes conditional entropy H(X|Y) for the given one
+   * column [[DataSet]]
+   *
+   * @param xy [[LabeledVector]] [[DataSet]] with one column
+   * @return Conditional Entropy H(X|Y)
+   */
   def conditionalEntropy(xy: DataSet[LabeledVector]): Double = {
     val y = xy map (_.label)
     val p = probs(y).toArray.asBreeze
@@ -109,11 +109,8 @@ case object InformationTheory {
     p.dot(seq2Breeze(condH))
   }
 
-  def mutualInformation(xy: DataSet[LabeledVector]): DataSet[Double] = {
-    val hx = entropy(xy)
-    val condH = conditionalEntropy(xy)
-    ???
-  }
+  def mutualInformation(xy: DataSet[LabeledVector]): Double =
+    entropy(xy) - conditionalEntropy(xy)
 
   /**
    * Computes 'symmetrical uncertainty' (SU) - a symmetric mutual information measure.
@@ -125,6 +122,7 @@ case object InformationTheory {
    */
   def symmetricalUncertainty(xy: DataSet[LabeledVector]): DataSet[Double] = {
     val mu = mutualInformation(xy)
+    log.debug(s"Mutual Information: $mu")
     val hx = ???
     val hy = ???
     ???
@@ -177,7 +175,6 @@ case object InformationTheory {
     //    gain > ((log2(numInstances - 1) + delta) / numInstances)
     gain > ((log2(numCutPoints - 1) + delta) / numInstances)
   }
-
 
 }
 

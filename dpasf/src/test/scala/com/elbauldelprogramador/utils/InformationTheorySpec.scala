@@ -39,9 +39,16 @@ class InformationTheorySpec extends BddSpec with Serializable {
         assert(entropy(column0) === 0.9474026952708241)
       }
     }
+
     "When computing conditional entropy on the first column with label H(X|Y)" - {
       "Should be 0.9215406320671156" in {
         assert(conditionalEntropy(column0) === 0.9215406320671156)
+      }
+    }
+
+    "When computing Mutual Information on the first column with label" - {
+      "Should be 0.02586206320370854" in {
+        assert(mutualInformation(column0) === 0.02586206320370854)
       }
     }
   }
