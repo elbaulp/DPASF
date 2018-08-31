@@ -54,10 +54,18 @@ case object InformationTheory {
    * @param x [[Dataset]] of [[LabeledVector]] with one column and its label
    * @return Column entropy
    */
-  def entropy(xy: DataSet[LabeledVector]): Double = {
-    val x = xy.map(_.vector(0))
-    val p = probs(x).toArray.asBreeze
-    p.dot(-log2(p))
+  def entropy(xy: DataSet[LabeledVector])(implicit d: DummyImplicit): Double =
+    entropy(xy map (_.vector(0)))
+
+  /**
+   * Computes entropy of the a single-column [[DataSet]]
+   *
+   * @param x [[DataSet]] with one column
+   * @return its entropy
+   */
+  def entropy(x: DataSet[Double]): Double = {
+    val p: DenseVector[Double] = probs(x)
+    p dot (-log2(p))
   }
 
   /**
@@ -120,13 +128,12 @@ case object InformationTheory {
    * @param xy [[LabeledVector]] with one feature and class label
    * @return SU value
    */
-  def symmetricalUncertainty(xy: DataSet[LabeledVector]): DataSet[Double] = {
-    val mu = mutualInformation(xy)
-    log.debug(s"Mutual Information: $mu")
-    val hx = ???
-    val hy = ???
-    ???
+  def symmetricalUncertainty(xy: DataSet[LabeledVector]): Double = {
+    val y = xy map (_.label)
+    val x = xy map (_.vector(0))
+    2 * mutualInformation(xy) / (entropy(x) + entropy(y))
   }
+
   //  def symmetricalUncertainy(x: FlinkVec, y: Seq[Double]): Double = {
   //    2d * mutualInformation(x) / (entropy(x) + entropy(y))
   //  }
