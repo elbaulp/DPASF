@@ -84,8 +84,39 @@ object FCBFTransformer {
         val attr = input.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(i))))
         InformationTheory.symmetricalUncertainty(attr)
       }
+
+      // SU ordered desc per SU_{i, c}
+      // its a tuple with (su value, original index before sorting, flag indicating
+      // feauture has been selected)
+      val suSorted = su
+        .zipWithIndex
+        .map{ case (suValue, idx) => (suValue, idx, 1)}
+        .sortBy(-_._1)
+        .filter(_._1 > thr)
+
+      // Get first element
+      val p = suSorted.head
+      for (_ <- 1 to nAttrs) yield {
+        // get next element
+        val q = suSorted.find(x => x._3 == 1 && x._2 > p._2)
+        // Main loop
+        whileLoop(q) {
+          val pqSu = InformationTheory.symmetricalUncertainty(
+            xy: DataSet[LabeledVector]
+          )
+        }
+      }
     }
   }
+
+  private[this] def whileLoop(cond: => Option[(Double, Int, Int)])
+    (block: => Seq[Double]): Seq[Double] =
+    if (cond.nonEmpty) {
+      block
+      whileLoop(cond)(block)
+    } else Seq.empty
+
+
 
   /**
    * Computes C-Correlation of each feature w.r.t the class label.
