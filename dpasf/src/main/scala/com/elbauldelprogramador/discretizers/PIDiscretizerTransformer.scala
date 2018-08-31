@@ -27,16 +27,16 @@ import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, T
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Partition Incremental Discretization (PiD)
-  *
-  * For more information, see:<br/>
-  *
-  * João Gama and Carlos Pinto. 2006. Discretization from data streams: applications to histograms and data mining.
-  * In Proceedings of the 2006 ACM symposium on Applied computing (SAC '06). ACM, New York, NY, USA, 662-667.
-  *
-  * DOI : http://dx.doi.org/10.1145/1141277.1141429
-  *
-  */
+ * Partition Incremental Discretization (PiD)
+ *
+ * For more information, see:<br/>
+ *
+ * João Gama and Carlos Pinto. 2006. Discretization from data streams: applications to histograms and data mining.
+ * In Proceedings of the 2006 ACM symposium on Applied computing (SAC '06). ACM, New York, NY, USA, 662-667.
+ *
+ * DOI : http://dx.doi.org/10.1145/1141277.1141429
+ *
+ */
 class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
 
   import PIDiscretizerTransformer._
@@ -45,71 +45,71 @@ class PIDiscretizerTransformer extends Transformer[PIDiscretizerTransformer] {
   private[PIDiscretizerTransformer] lazy val step = (parameters(Max) - parameters(Min)) / parameters(L1InitialBins).toDouble
 
   /**
-    * Sets the number of Samples needed to be observer to trigger
-    * a layer 2 update
-    *
-    * @param l2Updates Number of instances needed to trigger a Layer 2 update
-    * @return [[PIDiscretizerTransformer]]
-    */
+   * Sets the number of Samples needed to be observer to trigger
+   * a layer 2 update
+   *
+   * @param l2Updates Number of instances needed to trigger a Layer 2 update
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setUpdateExamples(l2Updates: Int): PIDiscretizerTransformer = {
     parameters add (L2UpdateExamples, l2Updates)
     this
   }
 
   /**
-    * Sets the number of initial bins for layer 1
-    *
-    * @param bins Number of bins
-    * @return [[PIDiscretizerTransformer]]
-    */
+   * Sets the number of initial bins for layer 1
+   *
+   * @param bins Number of bins
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setL1Bins(bins: Int): PIDiscretizerTransformer = {
     parameters add (L1InitialBins, bins)
     this
   }
 
   /**
-    * Sets the minimun number of elements to start the update for layer 1
-    *
-    * @param n Number of elements
-    * @return [[PIDiscretizerTransformer]]
-    */
+   * Sets the minimun number of elements to start the update for layer 1
+   *
+   * @param n Number of elements
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setInitElements(n: Int): PIDiscretizerTransformer = {
     parameters add (InitialElements, n)
     this
   }
 
   /**
-    * Set the threshold for splitting a interval
-    *
-    * @param alpha Desired alpha threshold
-    * @return [[PIDiscretizerTransformer]]
-    */
+   * Set the threshold for splitting a interval
+   *
+   * @param alpha Desired alpha threshold
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setAlpha(alpha: Double): PIDiscretizerTransformer = {
     parameters add (Alpha, alpha)
     this
   }
 
   /**
-    * If data not scaled, use this as the minimun variable range
-    *
-    * currently not used, its assumed the data is scaled
-    *
-    * @param min min value of the variable
-    * @return [[PIDiscretizerTransformer]]
-    */
+   * If data not scaled, use this as the minimun variable range
+   *
+   * currently not used, its assumed the data is scaled
+   *
+   * @param min min value of the variable
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setMin(min: Int): PIDiscretizerTransformer = {
     parameters add (Min, min)
     this
   }
 
   /**
-    * If data not scaled, use this as the maximun variable range
-    *
-    * currently not used, its assumed the data is scaled
-    *
-    * @param max max value of the variable
-    * @return [[PIDiscretizerTransformer]]
-    */
+   * If data not scaled, use this as the maximun variable range
+   *
+   * currently not used, its assumed the data is scaled
+   *
+   * @param max max value of the variable
+   * @return [[PIDiscretizerTransformer]]
+   */
   def setMax(max: Int): PIDiscretizerTransformer = {
     parameters add (Max, max)
     this
@@ -151,9 +151,9 @@ object PIDiscretizerTransformer {
   // ========================================== Operations =========================================
 
   /**
-    * [[FitOperation]] which computes the cutpoints needed for the  Discretization using
-    * PiD (Partition Incremental Discretization) on a [[DataSet]] which type is [[LabeledVector]]
-    */
+   * [[FitOperation]] which computes the cutpoints needed for the  Discretization using
+   * PiD (Partition Incremental Discretization) on a [[DataSet]] which type is [[LabeledVector]]
+   */
   implicit val fitPIDiscretizerOp = new FitOperation[PIDiscretizerTransformer, LabeledVector] {
     override def fit(
       instance: PIDiscretizerTransformer,
@@ -191,11 +191,11 @@ object PIDiscretizerTransformer {
   }
 
   /**
-    * [[TransformDataSetOperation]] which performs a Discretization using PiD (Partition Incremental Discretization) on
-    * a [[DataSet]] which type is [[LabeledVector]] using the stored cutpoints
-    *
-    * @return A [[DataSet]] discretized according to PiD
-    */
+   * [[TransformDataSetOperation]] which performs a Discretization using PiD (Partition Incremental Discretization) on
+   * a [[DataSet]] which type is [[LabeledVector]] using the stored cutpoints
+   *
+   * @return A [[DataSet]] discretized according to PiD
+   */
   implicit val transformLabeledIDADiscretizer = new TransformDataSetOperation[PIDiscretizerTransformer, LabeledVector, LabeledVector] {
     override def transformDataSet(
       instance: PIDiscretizerTransformer,
@@ -230,26 +230,26 @@ object PIDiscretizerTransformer {
   }
 
   /**
-    * Updates Layer 1 of the algorithm.
-    *
-    * This layer simplifies and summarizes the data. In this phase there are usualy
-    * much more bins that desired, specified via [[L1InitialBins]].
-    *
-    * This method:
-    *
-    * - For each value on the [[DataSet]], this method determines its corresponding interval.
-    * - When the numbers of counts is above [[Alpha]] (A percentage of the total number of points seen so far)
-    * a split process is triggered.  If the interval triggering the split is the first or the last, a new
-    * interval with the same step is inserted. Otherwise, the interval is splitted in two, creating a new interval.
-    *
-    * @param lv         [[LabeledVector]] with a instance
-    * @param h          [[Histogram]] storing all internal data Structures
-    * @param step       the desired step
-    * @param initElems  How many elements are needed before trying to split
-    * @param alpha      Threshold to launch split process
-    * @param totalCount Number of instances seen so far
-    * @return An [[Histogram]] updated with the new information
-    */
+   * Updates Layer 1 of the algorithm.
+   *
+   * This layer simplifies and summarizes the data. In this phase there are usualy
+   * much more bins that desired, specified via [[L1InitialBins]].
+   *
+   * This method:
+   *
+   * - For each value on the [[DataSet]], this method determines its corresponding interval.
+   * - When the numbers of counts is above [[Alpha]] (A percentage of the total number of points seen so far)
+   * a split process is triggered.  If the interval triggering the split is the first or the last, a new
+   * interval with the same step is inserted. Otherwise, the interval is splitted in two, creating a new interval.
+   *
+   * @param lv         [[LabeledVector]] with a instance
+   * @param h          [[Histogram]] storing all internal data Structures
+   * @param step       the desired step
+   * @param initElems  How many elements are needed before trying to split
+   * @param alpha      Threshold to launch split process
+   * @param totalCount Number of instances seen so far
+   * @return An [[Histogram]] updated with the new information
+   */
   private[this] def updateL1(
     lv: LabeledVector,
     h: Histogram,
@@ -306,12 +306,12 @@ object PIDiscretizerTransformer {
   }
 
   /**
-    * In layer 2 the intervals created in layer 1 are merged to reduce its size
-    *
-    * @param lv [[LabeledVector]] instance
-    * @param h  [[Histogram]] with all information of counts, distributions and intervals
-    * @return An updated [[Histogram]]
-    */
+   * In layer 2 the intervals created in layer 1 are merged to reduce its size
+   *
+   * @param lv [[LabeledVector]] instance
+   * @param h  [[Histogram]] with all information of counts, distributions and intervals
+   * @return An updated [[Histogram]]
+   */
   private[this] def updateL2(
     lv: LabeledVector,
     h: Histogram): Histogram = {
@@ -344,13 +344,13 @@ object PIDiscretizerTransformer {
   }
 
   /**
-    * Updates the distributions in layer 2 in order to reduce the number of bins for each attribute
-    *
-    * @param attr      Index of the attribute to which update its distributions
-    * @param newPoints Sequence of updated cutpoints to merge intervals
-    * @param h         [[Histogram]] holding all the information
-    * @return An updated [[Histogram]]
-    */
+   * Updates the distributions in layer 2 in order to reduce the number of bins for each attribute
+   *
+   * @param attr      Index of the attribute to which update its distributions
+   * @param newPoints Sequence of updated cutpoints to merge intervals
+   * @param h         [[Histogram]] holding all the information
+   * @return An updated [[Histogram]]
+   */
   private[this] def updateDistributionsL2(attr: Int, newPoints: Seq[Double])(h: Histogram): Histogram = {
     val newDistribL2 = ArrayBuffer.empty[Map[Int, Double]]
     val interval = collection.mutable.Map.empty[Int, Double]
@@ -377,21 +377,21 @@ object PIDiscretizerTransformer {
   }
 
   /**
-    * Recursive Entropy Discretization Algorithm.
-    *
-    * An implemantation of Fayyad & and Irani <a href="http://yaroslavvb.com/papers/fayyad-discretization.pdf">ref.</a>
-    *
-    * This algorithm uses the class information entropy of candidate partitions to select the boundaries for
-    * discretization. It starts finding a single threshold that minimizes the entropy function over all possible
-    * cut-points; it is then recursively applied to both of the partitions. The stopping criteria uses the
-    * Minimum Description Length Principle <a href="https://en.wikipedia.org/wiki/Minimum_description_length">ref.</a>.
-    *
-    * @param index  Index for the current attribute
-    * @param first  Index for the first sets of intervals to examine
-    * @param last   Index for the last sets of intervals to examine
-    * @param h      [[Histogram]] with all the information
-    * @return The new calculated cutpoints
-    */
+   * Recursive Entropy Discretization Algorithm.
+   *
+   * An implemantation of Fayyad & and Irani <a href="http://yaroslavvb.com/papers/fayyad-discretization.pdf">ref.</a>
+   *
+   * This algorithm uses the class information entropy of candidate partitions to select the boundaries for
+   * discretization. It starts finding a single threshold that minimizes the entropy function over all possible
+   * cut-points; it is then recursively applied to both of the partitions. The stopping criteria uses the
+   * Minimum Description Length Principle <a href="https://en.wikipedia.org/wiki/Minimum_description_length">ref.</a>.
+   *
+   * @param index  Index for the current attribute
+   * @param first  Index for the first sets of intervals to examine
+   * @param last   Index for the last sets of intervals to examine
+   * @param h      [[Histogram]] with all the information
+   * @return The new calculated cutpoints
+   */
   private[this] def subSetCuts(index: Int, first: Int, last: Int, h: Histogram): Option[Seq[Double]] = {
 
     if ((last - first) < 2)
@@ -410,22 +410,22 @@ object PIDiscretizerTransformer {
           0, // BestIndex
           0, // NCuts
           Vector.empty[Vector[Double]]) { // BestCounts
-          case (z, (m, i)) ⇒
-            import scala.collection.JavaConversions._
-            for (entry ← m.entrySet) {
-              z._1(0)(entry.getKey) += entry.getValue
-              z._1(1)(entry.getKey) -= entry.getValue
-            }
+            case (z, (m, i)) ⇒
+              import scala.collection.JavaConversions._
+              for (entry ← m.entrySet) {
+                z._1(0)(entry.getKey) += entry.getValue
+                z._1(1)(entry.getKey) -= entry.getValue
+              }
 
-            val currentCounts = z._1.map(_.toVector).toVector
-            val contingencyMatrix = z._1.map(_.toSeq).toSeq
-            val currH = InformationTheory.entropyConditionedOnRows(contingencyMatrix)
+              val currentCounts = z._1.map(_.toVector).toVector
+              val contingencyMatrix = z._1.map(_.toSeq).toSeq
+              val currH = InformationTheory.entropyConditionedOnRows(contingencyMatrix)
 
-            if (currH < z._2)
-              (z._1, currH, i, i + 1, currentCounts)
-            else
-              (z._1, z._2, z._3, i + 1, z._5)
-        }
+              if (currH < z._2)
+                (z._1, currH, i, i + 1, currentCounts)
+              else
+                (z._1, z._2, z._3, i + 1, z._5)
+          }
 
       // Check if gain is zero
       if ((priorH - bestH) <= 0)
@@ -457,7 +457,7 @@ object PIDiscretizerTransformer {
           Some(cutpoints)
 
         } else
-            None
+          None
       }
     }
   }

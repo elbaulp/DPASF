@@ -16,10 +16,12 @@
  */
 package com.elbauldelprogramador.featureselection
 
-import com.elbauldelprogramador.utils.FlinkUtils
+import com.elbauldelprogramador.utils.{ FlinkUtils, InformationTheory }
 import org.apache.flink.api.scala.{ DataSet, _ }
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
+import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
+import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
 /**
@@ -78,7 +80,11 @@ object FCBFTransformer {
 
       // Phase 1, calculate SU (symmetrical_uncertainty) for each Feature
       // w.r.t the class (C-Correlation)
-
+      val y = input.map(_.label)
+      val f = input.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(0))))
+      val su = for (i ← 0 to nAttrs)
+        yield InformationTheory.symmetricalUncertainty(f)
+      log.info(s"SU ${y.print}")
     }
   }
 
@@ -105,6 +111,8 @@ object FCBFTransformer {
         input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
 
         val resultingParameters = instance.parameters ++ transformParameters
+
+        //InformationTheory.symmetricalUncertainy(input)
         ???
       }
     }

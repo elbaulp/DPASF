@@ -20,9 +20,8 @@ import java.util.concurrent.TimeUnit
 
 import com.elbauldelprogramador.BddSpec
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
-import org.apache.flink.api.scala.{ ExecutionEnvironment, _ }
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 
@@ -32,7 +31,7 @@ class FCBFTransformerSpec extends BddSpec with Serializable {
 
   env.setParallelism(1)
   env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-    3, // number of restart attempts
+    0, // number of restart attempts
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
 
@@ -48,13 +47,22 @@ class FCBFTransformerSpec extends BddSpec with Serializable {
     LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
   }
 
+  //al fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT)
+  //al rowIF = new RowCsvInputFormat(new Path(getClass.getResource("/lungcancer.csv").getPath), fieldTypes)
+  //al csvData: DataSet[Row] = env.createInput[Row](rowIF)
+  //al dataSet2 = csvData.map { tuple =>
+  //
+  //
+
   val fcbf = FCBFTransformer()
     .setThreshold(.05)
+
+  fcbf.fit(dataSet)
 
   "A FCBF FS on ???" - {
     "When computing its Entropy" - {
       "Should return entropy H(X) equal to 0.9402859586706309" in {
-        fcbf.fit(dataSet)
+
         assert(1 === 1)
       }
 
