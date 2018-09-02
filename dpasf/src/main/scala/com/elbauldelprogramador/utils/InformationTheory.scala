@@ -68,7 +68,7 @@ case object InformationTheory {
   private[this] def probs(x: DataSet[Double]): Seq[Double] = {
     val counts = x.groupBy(x ⇒ x)
       .reduceGroup(_.size.toDouble).collect
-    val total = counts.reduce(_ + _)
+    val total = counts.sum
 
     counts.map(_ / total)
   }
@@ -109,6 +109,23 @@ case object InformationTheory {
   }
 
   /**
+   * Computes conditional entropy H(X|Y) for the given [[DataSet]]
+   *
+   * @param y  [[DataSet]] with the values for y, single column
+   * @param xy [[DataSet]] with two columns, its a (Double, Double), where
+   * Y should be on the left, X on the right in order to compute H(X|Y)
+   * @return Conditional Entropy H(X|Y)
+   */
+  def conditionalEntropy(y: DataSet[Double], xy: DataSet[(Double, Double)]): Double = {
+    val p = probs(y).toArray.asBreeze
+    val values = y.distinct.collect
+    val condH = for (i ← values)
+      yield entropy(xy.filter(_._1 == i).map(_._2))
+
+    p.dot(seq2Breeze(condH))
+  }
+
+  /**
    * Returns the Mutual Information for the given two columns [[DataSet]]
    *
    * Mutual Information is defined as H(X) - H(X|Y)
@@ -118,7 +135,34 @@ case object InformationTheory {
    * @return Mutual Information
    */
   def mutualInformation(xy: DataSet[(Double, Double)]): Double =
-    entropy(xy.map(_._2)) - conditionalEntropy(xy)
+    entropy(xy map (_._2)) - conditionalEntropy(xy)
+
+  /**
+   * Returns the Mutual Information for the given two columns [[DataSet]]
+   *
+   * Mutual Information is defined as H(X) - H(X|Y)
+   *
+   * @param x [[DataSet]] with one column
+   * @param xy [[DataSet]] with two colums, its a (Double, Double), where
+   * Y should be on the left and X on the right.
+   * @return Mutual Information
+   */
+  def mutualInformation(x: DataSet[Double], xy: DataSet[(Double, Double)]): Double =
+    entropy(x) - conditionalEntropy(xy)
+
+  /**
+   * Returns the Mutual Information for the given two columns [[DataSet]]
+   *
+   * Mutual Information is defined as H(X) - H(X|Y)
+   *
+   * @param x [[DataSet]] with values for x, single column
+   * @param y [[DataSet]] with values for y, single column
+   * @param xy [[DataSet]] with two colums, its a (Double, Double), where
+   * Y should be on the left and X on the right.
+   * @return Mutual Information
+   */
+  def mutualInformation(x: DataSet[Double], y: DataSet[Double], xy: DataSet[(Double, Double)]): Double =
+    entropy(x) - conditionalEntropy(y, xy)
 
   /**
    * Computes 'symmetrical uncertainty' (SU) - a symmetric mutual information measure.
@@ -131,7 +175,7 @@ case object InformationTheory {
   def symmetricalUncertainty(xy: DataSet[(Double, Double)]): Double = {
     val y = xy map (_._1)
     val x = xy map (_._2)
-    2 * mutualInformation(xy) / (entropy(x) + entropy(y))
+    2 * mutualInformation(x, y, xy) / (entropy(x) + entropy(y))
   }
 
   /**
