@@ -21,7 +21,6 @@ import org.apache.flink.api.scala.{ DataSet, _ }
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
-import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
 /**
@@ -33,13 +32,13 @@ class FCBFTransformer extends Transformer[FCBFTransformer] {
 
   import FCBFTransformer._
 
-  private[featureselection] var metricsOption: Option[DataSet[Seq[Int]]] = None
+  private[featureselection] var metricsOption: Option[Seq[Int]] = None
 
   /**
    * Sets the SU threshold. A value in [0,1) used as a threshold
    * for selecting the relevant features.
    *
-   * @param thresh Desired threshold
+   * @param thr Desired threshold
    * @return [[FCBFTransformer]]
    */
   def setThreshold(thr: Double): FCBFTransformer = {
@@ -66,6 +65,10 @@ object FCBFTransformer {
 
   // ========================================== Operations =========================================
 
+  /**
+   * Trains the [[FCBFTransformer]] by extracting the most important features using
+   * Symmetrical Uncertainty criterion. It opperates on a [[DataSet]] of type [[LabeledVector]]
+   */
   implicit val fitLabeledVectorFCBF = new FitOperation[FCBFTransformer, LabeledVector] {
     override def fit(
       instance: FCBFTransformer,
@@ -73,15 +76,19 @@ object FCBFTransformer {
       input: DataSet[LabeledVector]): Unit = {
 
       val resultingParameters = instance.parameters ++ fitParameters
-      val thr = instance.parameters(Threshold)
+      val thr = resultingParameters(Threshold)
+      log.info(s"Threshold set to $thr")
 
       val nAttrs = FlinkUtils.numAttrs(input)
-      log.debug(s"Reading Dataset with $nAttrs attrs")
+      log.info(s"Reading Dataset with $nAttrs attrs")
 
       // Phase 1, calculate SU (symmetrical_uncertainty) for each Feature
       // w.r.t the class (C-Correlation)
       val su = for (i ← 0 until nAttrs) yield {
-        val attr = input.map(lv ⇒ LabeledVector(lv.label, DenseVector(lv.vector(i))))
+        val attr = input
+          .map(lv ⇒ (lv.label, lv.vector(i)))
+          .name("SU calculation")
+
         InformationTheory.symmetricalUncertainty(attr)
       }
 
@@ -90,48 +97,100 @@ object FCBFTransformer {
       // feauture has been selected)
       val suSorted = su
         .zipWithIndex
-        .map{ case (suValue, idx) => (suValue, idx, 1)}
-        .sortBy(-_._1)
         .filter(_._1 > thr)
+        .sortBy(-_._1)
+        .map { case (suValue, idx) ⇒ (suValue, idx, 1) }
 
+      // Phase 2. Compute best features
       // Get first element
-      val p = suSorted.head
-      for (_ <- 1 to nAttrs) yield {
-        // get next element
-        val q = suSorted.find(x => x._3 == 1 && x._2 > p._2)
-        // Main loop
-        whileLoop(q) {
-          val pqSu = InformationTheory.symmetricalUncertainty(
-            xy: DataSet[LabeledVector]
-          )
+      val p = firstElement(suSorted)
+      val sBest = for (_ ← 0 until nAttrs) yield {
+        p match {
+          case Some((psu, poidx, nextIdx)) ⇒
+            val qtuple = nextElement(suSorted, nextIdx)
+            val bestF = fcbf(p, qtuple, input)(suSorted)
+            bestF.filter(_._3 == 1)
+          case None ⇒ suSorted
         }
       }
+      log.info(s"Best Features found: $sBest.last")
+      val bestIndexs = sBest.last map (_._2)
+
+      instance.metricsOption = Some(bestIndexs)
     }
   }
 
-  private[this] def whileLoop(cond: => Option[(Double, Int, Int)])
-    (block: => Seq[Double]): Seq[Double] =
-    if (cond.nonEmpty) {
-      block
-      whileLoop(cond)(block)
-    } else Seq.empty
-
-
+  /**
+   * Returns tuple corresponding to first 'unconsidered' feature.
+   *
+   * @param s [[Seq]] with SU value, original feature index and column flag
+   * @return [[Tuple3]] (Su value, original feature index, index of next 'unconsidered' feature)
+   */
+  private[this] def firstElement(s: Seq[(Double, Int, Int)]): Option[(Double, Int, Int)] = {
+    val first = s.find(_._3 == 1)
+    first.map(x ⇒ (x._1, x._2, s.indexWhere(_._1 == x._1)))
+  }
 
   /**
-   * Computes C-Correlation of each feature w.r.t the class label.
-   * This value corresponds with the Symmetrical Uncertainty of each
-   * feature with the label. It is computed as:
+   * Returns the tuple corresponding to the next 'unconsidered' feature.
    *
-   * SU(X, y) = 2 * (IG(X|Y) / (H(X) + H(Y)))
-   *
-   * @param input [[DataSet]] to compute SU to
-   * @return Vector[Double] with SU indexed for eah attribute (v(0) corresponds with
-   * SU for feature 0)
+   * @param s   [[Seq]] with SU value, original feature index and column flag
+   * @param idx original index of a feature whose next element is required.
+   * @return [[Tuple3]] (Su value, original feature index, index of next 'unconsidered' feature)
    */
-  private[this] def cCorrelation(input: DataSet[LabeledVector]): Vector[Double] = {
-    ???
+  private[this] def nextElement(s: Seq[(Double, Int, Int)], idx: Int): Option[(Double, Int, Int)] = {
+    val next = s.zipWithIndex.find { case (x, oidx) ⇒ x._3 == 1 && oidx > idx }
+    next.map { case (x, _) ⇒ (x._1, x._2, s.indexWhere(_._1 == x._1)) }
   }
+
+  /**
+   * Extracts the best features based on the Symmetrical Uncertainty computed as
+   * a first step.
+   *
+   * It starts with the first element of =slist=, which is the element with greatest SU (F_p).
+   * For all the remaining features (From the one right next to the current one to the
+   * last one in the list), if F_p is a redundant peer to a feature F_q, F_q is removed
+   * from the list. After one round of filtering features based on F_p, the algorithm will take
+   * the currently remaining feature right next to F_p as the new reference to repeat the filtering
+   * process.
+   *
+   * It stops when there is no more features to be removed from the list.
+   *
+   * @param p     feature being analyzed
+   * @param q     feature right next to p
+   * @param input [[DataSet]] with the features
+   * @param slist List with information for each feature:
+   *              (SU value, Original Index and flag indicaing if it's important)
+   * @return Updated list with the selected features
+   */
+  private[this] def fcbf(
+    p: Option[(Double, Int, Int)],
+    q: Option[(Double, Int, Int)],
+    input: DataSet[LabeledVector])(slist: Seq[(Double, Int, Int)]): Seq[(Double, Int, Int)] =
+    p match {
+      case Some((psu, pidx, pNextIdx)) ⇒
+        q match {
+          case Some((qsu, qidx, qNextIdx)) ⇒
+            // TODO: Cache SU value for (p,q)?
+            val pqSu = InformationTheory.symmetricalUncertainty(
+              input
+                map (x ⇒ (x vector qidx, x vector pidx))
+                name "PQ SU")
+            val newSlist =
+              if (pqSu >= qsu) slist.updated(qNextIdx, (qsu, qidx, 0))
+              else slist
+            // get Next element
+            val nextq = nextElement(newSlist, qNextIdx)
+            fcbf(p, nextq, input)(newSlist)
+          case None ⇒
+            // Get next element
+            val nextp = nextElement(slist, pNextIdx)
+            fcbf(nextp, q, input)(slist)
+        }
+      case None ⇒
+        // No more elements to process, slist hast best features
+        slist
+    }
 
   implicit val transformDataSetLabeledVectorsFCBF = {
     new TransformDataSetOperation[FCBFTransformer, LabeledVector, LabeledVector] {
@@ -140,10 +199,17 @@ object FCBFTransformer {
         transformParameters: ParameterMap,
         input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
 
-        val resultingParameters = instance.parameters ++ transformParameters
-
-        //InformationTheory.symmetricalUncertainy(input)
-        ???
+        instance.metricsOption match {
+          case Some(bests) ⇒
+            input.map { x ⇒
+              val attrs = x.vector
+              val output = bests.map(attrs(_))
+              LabeledVector(x.label, DenseVector(output.toArray))
+            }
+          case None ⇒
+            throw new RuntimeException("The FCBF algorithm has not been fitted to the data. " +
+              "This is necessary to compute the best features to select.")
+        }
       }
     }
   }
