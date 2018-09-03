@@ -36,6 +36,7 @@ private[elbauldelprogramador] case object FlinkUtils {
     // move all remaining vectors to a single partition, compute size of the first and forward it
     .mapPartition(in ⇒ if (in.hasNext) Seq(in.next.vector.size) else Seq())
     .setParallelism(1)
+    .name("Compute NumAttrs")
     .collect
     .head
 

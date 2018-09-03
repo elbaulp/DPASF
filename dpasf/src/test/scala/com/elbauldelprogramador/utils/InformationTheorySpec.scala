@@ -13,7 +13,7 @@ class InformationTheorySpec extends BddSpec with Serializable {
 
   private val env = ExecutionEnvironment.createLocalEnvironment()
 
-  env.setParallelism(4)
+  env.setParallelism(1)
   env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
     3, // number of restart attempts
     Time.of(10, TimeUnit.SECONDS) // delay
