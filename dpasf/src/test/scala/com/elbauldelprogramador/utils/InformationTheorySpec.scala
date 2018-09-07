@@ -13,7 +13,7 @@ class InformationTheorySpec extends BddSpec with Serializable {
 
   private val env = ExecutionEnvironment.createLocalEnvironment()
 
-  env.setParallelism(1)
+  env.setParallelism(8)
   env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
     3, // number of restart attempts
     Time.of(10, TimeUnit.SECONDS) // delay
@@ -32,65 +32,76 @@ class InformationTheorySpec extends BddSpec with Serializable {
   }
 
   // https://stackoverflow.com/a/11107546/1612432
-  private def truncateAt(n: Double, p: Int): Double = {
+  def roundAt(p: Int)(n: Double): Double = {
+    val s = math pow (10, p)
+    (math round n * s) / s
+  }
+  def truncateAt(p: Int)(n: Double): Double = {
     val s = math pow (10, p)
     (math floor n * s) / s
   }
 
+  def truncAt2(n: Double) = truncateAt(2)(n)
+  def roundAt4(n: Double) = roundAt(4)(n)
+  def roundAt2(n: Double) = roundAt(2)(n)
+
   val column0 = dataSet.map(lv ⇒ (lv.label, lv.vector(0)))
+  val column0v = column0.collect
+  val y = column0v map (_._1)
+  val x = column0v map (_._2)
 
   "Informaion Theroy Spec" - {
     "When computing entropy for the first column of Abalone" - {
-      "Should return entropy H(X) equal to 0.9474026952708241" in {
-        assert(entropy(column0.map(_._2)) === 0.9474026952708241)
+      "Should return entropy H(X) equal to 0.9474" in {
+        assert(roundAt4(entropy(x)) === 0.9474)
       }
     }
 
     "When computing conditional entropy on the first column with label H(X|Y)" - {
-      "Should be 0.9215406320671156" in {
-        assert(conditionalEntropy(column0) === 0.9215406320671156)
+      "Should be 0.9215" in {
+        assert(roundAt4(conditionalEntropy(x, y)) === 0.9215)
       }
     }
 
     "When computing Mutual Information on the first column with label" - {
-      "Should be 0.02586206320370854" in {
-        assert(mutualInformation(column0) === 0.02586206320370854)
+      "Should be 0.0259" in {
+        assert(roundAt4(mutualInformation(x, y)) === 0.0259)
       }
     }
 
     "When computing Symmetrical Uncertainty on the first column with label" - {
-      "Should be 0.026560697288523276" in {
-        assert(symmetricalUncertainty(column0) === 0.026560697288523276)
+      "Should be 0.0266" in {
+        assert(roundAt4(symmetricalUncertainty(column0)) === 0.0266)
       }
     }
 
     "When computing Symmetrical Uncertainty on the whole Abalone Dataset" - {
       """Should be [
-              0.026560697288523276,
-              0.06473920415289718,
-              0.07117682463410091,
-              0.09063844964208025,
-              0.11157317642876234,
-              0.08092568050702133,
-              0.07495399595384908,
-              0.09506775221909011
+              0.02,
+              0.06,
+              0.07,
+              0.09,
+              0.11,
+              0.08,
+              0.07,
+              0.09
          ]""" in {
         val expected = List(
-          0.026560697288523276,
-          0.06473920415289718,
-          0.07117682463410091,
-          0.09063844964208025,
-          0.11157317642876234,
-          0.08092568050702133,
-          0.07495399595384908,
-          0.09506775221909011).map(truncateAt(_, 6))
+          0.02,
+          0.06,
+          0.07,
+          0.09,
+          0.11,
+          0.08,
+          0.07,
+          0.09).map(truncAt2)
 
         val su = for (i ← 0 until 8) yield {
           val attr = dataSet.map(lv ⇒ (lv.label, lv.vector(i)))
           InformationTheory.symmetricalUncertainty(attr)
         }
 
-        assert(su.map(truncateAt(_, 6)) === expected)
+        assert(su.map(truncAt2) === expected)
       }
     }
   }
