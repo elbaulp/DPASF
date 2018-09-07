@@ -1,17 +1,15 @@
 package com.elbauldelprogramador.utils
 
-import breeze.linalg.DenseVector
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.math.Breeze._
-import org.apache.flink.ml.math.{ Vector ⇒ FlinkVec }
+import org.apache.flink.ml.math.{ DenseVector, Vector }
 import org.slf4j.LoggerFactory
+
+import scala.collection.GenTraversable
 
 /**
  * Object containing utility functions for Information Theory
  */
 case object InformationTheory {
-
-  import IFImplicits._
 
   private[this] val log = LoggerFactory.getLogger(getClass)
 
@@ -19,7 +17,9 @@ case object InformationTheory {
 
   private[this] def log2(a: Double): Double = math.log(a) / log2
 
-  private[this] def log2(a: DenseVector[Double]): DenseVector[Double] = a.map(log2)
+  private[this] def log2(a: Vector): Vector = DenseVector(a.map(v ⇒ log2(v._2)).toArray)
+
+  private[this] def minuslog2(a: Vector): Vector = DenseVector(a.map(v ⇒ -log2(v._2)).toArray)
 
   private[this] def log(x: Double): Double =
     if (x > 0) math.log(x)
@@ -34,7 +34,7 @@ case object InformationTheory {
    * @param n     Number of elements
    *
    */
-  private[this] def entropy(freqs: Seq[Double], n: Double) = {
+  private[this] def entropy(freqs: GenTraversable[Double], n: Double) = {
     freqs.aggregate(0.0)({
       case (h, q) ⇒
         h + (if (q == 0) 0 else (q.toDouble / n) * (math.log(q.toDouble / n) / math.log(2)))
@@ -44,37 +44,26 @@ case object InformationTheory {
   /**
    * Calculate entropy for the given frequencies.
    *
-   * @param freqs Frequencies of each different class
+   * @param x Frequencies of each different class
    */
-  def entropy(freqs: Seq[Double]): Double =
-    entropy(freqs, freqs.sum)
-
-  /**
-   * Computes entropy of the a single-column [[DataSet]]
-   *
-   * @param x [[DataSet]] with one column
-   * @return its entropy
-   */
-  def entropy(x: DataSet[Double]): Double = {
-    val p: DenseVector[Double] = probs(x)
-    p dot (-log2(p))
+  def entropy(x: GenTraversable[Double]): Double = {
+    val p = probs(x)
+    p.dot(minuslog2(p))
   }
 
   /**
-   * Compute the probabilities of each value on the given [[DataSet]]
+   * Compute the probabilities of each value on the given [[collection]]
    *
-   * @param x single colum [[DataSet]]
-   * @return Sequence of probabilites for each value
+   * @param x single column [[collection]]
+   * @return [[Vector]] of probabilities for each value
    */
-  private[this] def probs(x: DataSet[Double]): Seq[Double] = {
-    val counts = x.groupBy(_.doubleValue)
-      .reduceGroup(_.size.toDouble)
-      .name("X Probs")
-      .collect
+  private[this] def probs(x: GenTraversable[Double]): Vector = {
+    val counts = x.groupBy(identity)
+      .map(_._2.size)
 
-    val total = counts.sum
+    val ps = counts map (_ / counts.sum.toDouble)
 
-    counts.map(_ / total)
+    DenseVector(ps.toArray)
   }
 
   /**
@@ -96,81 +85,35 @@ case object InformationTheory {
   }
 
   /**
-   * Computes conditional entropy H(X|Y) for the given [[DataSet]]
+   * Computes conditional entropy H(X|Y) for the given two [[collection]]
    *
-   * @param xy [[DataSet]] with two columns, its a (Double, Double), where
-   *           Y should be on the left, X on the right in order to compute H(X|Y)
+   * @param x [[Seq]] with the values for x, single column
+   * @param y [[Seq]] with the values for y
    * @return Conditional Entropy H(X|Y)
    */
-  def conditionalEntropy(xy: DataSet[(Double, Double)]): Double = {
-    val y = xy map (_._1)
-    val p = probs(y).toArray.asBreeze
-    val values = y.distinct.collect
+  def conditionalEntropy(x: Seq[Double], y: Seq[Double]): Double = {
+    val p = probs(y)
+    val values = y.distinct
+    val xy = x zip y
     val condH = for (i ← values)
-      yield entropy(xy.filter(_._1 == i).map(_._2))
+      yield entropy(xy filter (_._2 == i) map (_._1))
 
-    p.dot(seq2Breeze(condH))
+    val condHVec = DenseVector(condH.toArray)
+
+    p dot condHVec
   }
 
   /**
-   * Computes conditional entropy H(X|Y) for the given [[DataSet]]
-   *
-   * @param y  [[DataSet]] with the values for y, single column
-   * @param xy [[DataSet]] with two columns, its a (Double, Double), where
-   *           Y should be on the left, X on the right in order to compute H(X|Y)
-   * @return Conditional Entropy H(X|Y)
-   */
-  def conditionalEntropy(y: DataSet[Double], xy: DataSet[(Double, Double)]): Double = {
-    val p = probs(y).toArray.asBreeze
-    val values = y
-      .distinct
-      .name("Distinct Values Y")
-      .collect
-    val condH = for (i ← values)
-      yield entropy(
-      xy filter (_._1 == i) map (_._2) name "H(X|Y)")
-
-    p.dot(seq2Breeze(condH))
-  }
-
-  /**
-   * Returns the Mutual Information for the given two columns [[DataSet]]
+   * Returns the Mutual Information for the given two [[collection]]
    *
    * Mutual Information is defined as H(X) - H(X|Y)
    *
-   * @param xy [[DataSet]] with two colums, its a (Double, Double), where
-   *           Y should be on the left and X on the right.
+   * @param x  [[Seq]] with one column, representing X
+   * @param y  [[Seq]] with one colums, representing y
    * @return Mutual Information
    */
-  def mutualInformation(xy: DataSet[(Double, Double)]): Double =
-    entropy(xy map (_._2)) - conditionalEntropy(xy)
-
-  /**
-   * Returns the Mutual Information for the given two columns [[DataSet]]
-   *
-   * Mutual Information is defined as H(X) - H(X|Y)
-   *
-   * @param x  [[DataSet]] with one column
-   * @param xy [[DataSet]] with two colums, its a (Double, Double), where
-   *           Y should be on the left and X on the right.
-   * @return Mutual Information
-   */
-  def mutualInformation(x: DataSet[Double], xy: DataSet[(Double, Double)]): Double =
-    entropy(x) - conditionalEntropy(xy)
-
-  /**
-   * Returns the Mutual Information for the given two columns [[DataSet]]
-   *
-   * Mutual Information is defined as H(X) - H(X|Y)
-   *
-   * @param x  [[DataSet]] with values for x, single column
-   * @param y  [[DataSet]] with values for y, single column
-   * @param xy [[DataSet]] with two colums, its a (Double, Double), where
-   *           Y should be on the left and X on the right.
-   * @return Mutual Information
-   */
-  def mutualInformation(x: DataSet[Double], y: DataSet[Double], xy: DataSet[(Double, Double)]): Double =
-    entropy(x) - conditionalEntropy(y, xy)
+  def mutualInformation(x: Seq[Double], y: Seq[Double]): Double =
+    entropy(x) - conditionalEntropy(x, y)
 
   /**
    * Computes 'symmetrical uncertainty' (SU) - a symmetric mutual information measure.
@@ -181,9 +124,19 @@ case object InformationTheory {
    * @return SU value
    */
   def symmetricalUncertainty(xy: DataSet[(Double, Double)]): Double = {
-    val y = xy map (_._1) name "SU Get Y"
-    val x = xy map (_._2) name "SU Get X"
-    2 * mutualInformation(x, y, xy) / (entropy(x) + entropy(y))
+    val su = xy.reduceGroup { in ⇒
+      val invec = in.toVector
+      val x = invec map (_._2)
+      val y = invec map (_._1)
+
+      val mu = mutualInformation(x, y)
+      val Hx = entropy(x)
+      val Hy = entropy(y)
+
+      2 * mu / (Hx + Hy)
+    }
+
+    su.collect.head
   }
 
   /**
@@ -230,14 +183,4 @@ case object InformationTheory {
     gain > ((log2(numCutPoints - 1) + delta) / numInstances)
   }
 
-}
-
-object IFImplicits {
-  // Implicits
-  //implicit def flinkVec2Vec(x: FlinkVec): Vector[Double] = x.toVector
-  implicit def linalgVec2Vec(x: DenseVector[Double]): Seq[Double] = x.toSeq
-
-  implicit def seq2Breeze(x: Seq[Double]): DenseVector[Double] = x.toArray.asBreeze
-
-  //implicit def vec2LinalgVec(x: Seq[Double]): DenseVector[Double] = DenseVector(x.toArray)
 }

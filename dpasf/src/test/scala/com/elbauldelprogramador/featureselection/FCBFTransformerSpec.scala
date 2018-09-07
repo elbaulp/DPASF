@@ -32,7 +32,7 @@ class FCBFTransformerSpec extends BddSpec with Serializable {
   conf.setString(WebOptions.LOG_PATH, "/tmp/flink/log/output.out")
 
   private val env = ExecutionEnvironment.createLocalEnvironmentWithWebUI(conf)
-  env.setParallelism(1)
+  env.setParallelism(8)
 
   //env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   //  1, // number of restart attempts
