@@ -106,6 +106,12 @@ class LOFDiscretizerTransformer extends Transformer[LOFDiscretizerTransformer] {
     parameters add (ProvideProb, probs)
     this
   }
+
+  def setNClass(n: Int): LOFDiscretizerTransformer = {
+    parameters add (NCLasses, n)
+    this
+  }
+
 }
 
 object LOFDiscretizerTransformer {
@@ -141,6 +147,10 @@ object LOFDiscretizerTransformer {
     val defaultValue: Option[Boolean] = Some(true)
   }
 
+  private[LOFDiscretizerTransformer] case object NCLasses extends Parameter[Int] {
+    val defaultValue: Option[Int] = Some(2)
+  }
+
   // ========================================== Factory methods ====================================
   def apply(): LOFDiscretizerTransformer = new LOFDiscretizerTransformer
 
@@ -172,10 +182,12 @@ object LOFDiscretizerTransformer {
         val maxLabels = resultingParameters(MaxLabels)
         val provideProb = resultingParameters(ProvideProb)
 
-        val nClasses = input.map(_.label)
-          .distinct
-          .count
-          .toInt
+        //        val nClasses = input.map(_.label)
+        //          .distinct
+        //          .count
+        //          .toInt
+
+        val nClasses = resultingParameters(NCLasses)
 
         val lofd = new LOFDiscretizer(
           maxHist,

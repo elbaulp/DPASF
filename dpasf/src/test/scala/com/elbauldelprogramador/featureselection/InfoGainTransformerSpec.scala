@@ -107,23 +107,19 @@ class InfoGainTransformerSpec extends BddSpec with Serializable {
   }
 
   private val gain = InfoGainTransformer()
-    .setNFeatures(2)
     .setSelectNF(1)
   gain fit dataSet
 
   private val tennisGain = InfoGainTransformer()
-    .setNFeatures(1)
     .setSelectNF(1)
   tennisGain fit tennisDS
 
   private val gladiatorGain = InfoGainTransformer()
-    .setNFeatures(1)
     .setSelectNF(1)
   gladiatorGain fit gladiatorDS
 
   private val irisGain = InfoGainTransformer()
     .setSelectNF(2)
-    .setNFeatures(4)
   irisGain fit irisDS
 
   "A Information Gain FS on TennnisDS" - {

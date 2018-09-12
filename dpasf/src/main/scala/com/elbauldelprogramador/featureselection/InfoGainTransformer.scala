@@ -44,7 +44,6 @@ import scala.collection.immutable
  * =Parameters=
  *
  * - [[com.elbauldelprogramador.featureselection.InfoGainTransformer.SelectNF]]: The number of features to select
- * - [[com.elbauldelprogramador.featureselection.InfoGainTransformer.NFeatures]]: Total number of features on the DS
  */
 class InfoGainTransformer extends Transformer[InfoGainTransformer] {
 
@@ -64,18 +63,6 @@ class InfoGainTransformer extends Transformer[InfoGainTransformer] {
     parameters add (SelectNF, n)
     this
   }
-
-  //  /**
-  //   * Sets the total number of features for this
-  //   * [[DataSet]]
-  //   *
-  //   * @param n Number of features
-  //   * @return [[InfoGainTransformer]]
-  //   */
-  //  def setNFeatures(n: Int): InfoGainTransformer = {
-  //    parameters add (NFeatures, n)
-  //    this
-  //  }
 }
 
 /**
@@ -90,10 +77,6 @@ object InfoGainTransformer {
   private[InfoGainTransformer] case object SelectNF extends Parameter[Int] {
     val defaultValue: Option[Int] = Some(10)
   }
-
-  //  private[InfoGainTransformer] case object NFeatures extends Parameter[Int] {
-  //    val defaultValue: Option[Int] = Some(1)
-  //  }
 
   // ==================================== Factory methods ==========================================
   def apply(): InfoGainTransformer = new InfoGainTransformer
@@ -111,7 +94,6 @@ object InfoGainTransformer {
 
       val resultingParameters = instance.parameters ++ fitParameters
       val selectNF = resultingParameters(SelectNF)
-      //      val nf = resultingParameters(NFeatures)
 
       instance.nInstances = Some(input.count)
       val nf = FlinkUtils.numAttrs(input)
@@ -138,9 +120,6 @@ object InfoGainTransformer {
 
         val resultingParameters = instance.parameters ++ transformParameters
         val selectNF = resultingParameters(SelectNF)
-        //        val nf = resultingParameters(NFeatures)
-
-        //        require(selectNF <= nf, "Features to select must be less than total features")
 
         instance.gains match {
           case Some(gains) ⇒
@@ -246,7 +225,7 @@ object InfoGainTransformer {
             .groupBy(_._1)
           for (k ← x.keys)
             out.collect(k -> x(k).map(_._2))
-      }
+      } name "Frequencies"
     attrFreqs.collect
   }
 }

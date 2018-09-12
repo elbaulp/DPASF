@@ -30,12 +30,12 @@ object Main {
     val ig = InfoGainTransformer()
     val ofs = OFSGDTransformer()
     val ida = IDADiscretizerTransformer().setBins(5)
-    val lofd = LOFDiscretizerTransformer()
+    val lofd = LOFDiscretizerTransformer() // TODO: SET n class
     val pid = PIDiscretizerTransformer()
 
     // Preprocess and save them
     //for (d ← datasets) {
-    val data = datasets(0)
+    val data = datasets(1)
     val (train, test) = readFold(k, data)
     val nattr = FlinkUtils.numAttrs(train)
     val selectN = (nattr / 2.0).ceil.toInt
@@ -58,10 +58,10 @@ object Main {
     val testt = pipeline transform test
     println("Donde transformint test")
 
-    write(testt, s"test-${transName}-fold-$k")
-    println(s"Done test-${transName}-fold-$k")
-    write(result, s"train-${transName}-fold-$k")
-    println(s"Done train-${transName}-fold-$k")
+    write(testt, s"test-${data}-${transName}-fold-$k")
+    println(s"Done test-${data}-${transName}-fold-$k")
+    write(result, s"train-${data}-${transName}-fold-$k")
+    println(s"Done train-${data}-${transName}-fold-$k")
     //}
     env.execute
   }

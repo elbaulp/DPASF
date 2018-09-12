@@ -67,11 +67,11 @@ class IDADiscretizerTransformer extends Transformer[IDADiscretizerTransformer] {
   def discretizeWith(data: DataSet[LabeledVector]): DataSet[LabeledVector] = {
     cuts match {
       case Some(c) ⇒
-        data map { l ⇒
+        data.map { l ⇒
           val attrs = l.vector map (_._2) toSeq
           val dattrs = assignDiscreteValue(attrs, c)
           LabeledVector(l.label, DenseVector(dattrs.toArray))
-        }
+        } name "DiscretizeWith"
       case None ⇒ throw new RuntimeException("The IDADiscretizer has not been transformed. " +
         "This is necessary to retrieve the cutpoints for future discretizations.")
     }
@@ -180,7 +180,7 @@ object IDADiscretizerTransformer {
     input: DataSet[LabeledVector],
     bins: Int,
     nAttrs: Int,
-    V: Vector[IntervalHeapWrapper]): DataSet[LabeledVector] = input map { v ⇒
+    V: Vector[IntervalHeapWrapper]): DataSet[LabeledVector] = input.map { v ⇒
     val attrs = v.vector.map(_._2)
     val label = v.label
     // TODO: Check for missing values
@@ -193,5 +193,5 @@ object IDADiscretizerTransformer {
           lv.vector.update(i, V(i) getBin x)
           lv
       }
-  }
+  } name "Discretize"
 }
