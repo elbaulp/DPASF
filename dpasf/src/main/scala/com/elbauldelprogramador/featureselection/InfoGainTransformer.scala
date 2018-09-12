@@ -17,6 +17,7 @@
 
 package com.elbauldelprogramador.featureselection
 
+import com.elbauldelprogramador.utils.FlinkUtils
 import com.elbauldelprogramador.utils.InformationTheory.entropy
 import org.apache.flink.api.scala.{ DataSet, _ }
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
@@ -64,17 +65,17 @@ class InfoGainTransformer extends Transformer[InfoGainTransformer] {
     this
   }
 
-  /**
-   * Sets the total number of features for this
-   * [[DataSet]]
-   *
-   * @param n Number of features
-   * @return [[InfoGainTransformer]]
-   */
-  def setNFeatures(n: Int): InfoGainTransformer = {
-    parameters add (NFeatures, n)
-    this
-  }
+  //  /**
+  //   * Sets the total number of features for this
+  //   * [[DataSet]]
+  //   *
+  //   * @param n Number of features
+  //   * @return [[InfoGainTransformer]]
+  //   */
+  //  def setNFeatures(n: Int): InfoGainTransformer = {
+  //    parameters add (NFeatures, n)
+  //    this
+  //  }
 }
 
 /**
@@ -90,9 +91,9 @@ object InfoGainTransformer {
     val defaultValue: Option[Int] = Some(10)
   }
 
-  private[InfoGainTransformer] case object NFeatures extends Parameter[Int] {
-    val defaultValue: Option[Int] = Some(1)
-  }
+  //  private[InfoGainTransformer] case object NFeatures extends Parameter[Int] {
+  //    val defaultValue: Option[Int] = Some(1)
+  //  }
 
   // ==================================== Factory methods ==========================================
   def apply(): InfoGainTransformer = new InfoGainTransformer
@@ -110,9 +111,10 @@ object InfoGainTransformer {
 
       val resultingParameters = instance.parameters ++ fitParameters
       val selectNF = resultingParameters(SelectNF)
-      val nf = resultingParameters(NFeatures)
+      //      val nf = resultingParameters(NFeatures)
 
       instance.nInstances = Some(input.count)
+      val nf = FlinkUtils.numAttrs(input)
 
       val (h, gains) = computeInfoGain(input, instance.nInstances.get, selectNF, nf)
 
@@ -136,9 +138,9 @@ object InfoGainTransformer {
 
         val resultingParameters = instance.parameters ++ transformParameters
         val selectNF = resultingParameters(SelectNF)
-        val nf = resultingParameters(NFeatures)
+        //        val nf = resultingParameters(NFeatures)
 
-        require(selectNF <= nf, "Features to select must be less than total features")
+        //        require(selectNF <= nf, "Features to select must be less than total features")
 
         instance.gains match {
           case Some(gains) ⇒
@@ -181,12 +183,12 @@ object InfoGainTransformer {
     // Compute entropy for entire dataset
     val inputFreqs = frequencies(input, (x: LabeledVector) ⇒ x.label)
       .map(x ⇒ x._1 -> x._2.head).sortBy(_._1)
-    val inputH = entropy(inputFreqs map (_._2))
+    val inputH = entropy(inputFreqs map (_._2), inputFreqs.map(_._2).sum)
     // Compute InfoGain for each attribute
     val gains = (0 until nf).map { i ⇒
       val freqs = frequencies(input, (x: LabeledVector) ⇒ x.vector(i)).sortBy(_._1)
       val px = freqs.map(x ⇒ x._1 -> x._2.sum / nInstances).sortBy(_._1)
-      val attrH = freqs.map(x ⇒ x._1 -> entropy(x._2)).sortBy(_._1)
+      val attrH = freqs.map(x ⇒ x._1 -> entropy(x._2, x._2.sum)).sortBy(_._1)
       // Compute H(Class | Attr)
       val HYAttr = px.map(_._2).zip(attrH.map(_._2))
         .foldLeft(0.0)((h, x) ⇒ h + (x._1 * x._2))

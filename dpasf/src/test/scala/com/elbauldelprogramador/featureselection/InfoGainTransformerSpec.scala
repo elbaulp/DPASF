@@ -26,7 +26,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 
-class InfoGainSpec extends BddSpec with Serializable {
+class InfoGainTransformerSpec extends BddSpec with Serializable {
 
   private val env = ExecutionEnvironment.createLocalEnvironment()
 

@@ -1,60 +1,76 @@
 package com.elbauldelprogramador
 
-import com.elbauldelprogramador.featureselection.FCBFTransformer
-import org.apache.flink.api.scala.{ ExecutionEnvironment, _ }
-import org.apache.flink.configuration.{ ConfigOption, Configuration }
+import com.elbauldelprogramador.Setup._
+import com.elbauldelprogramador.discretizers.{ IDADiscretizerTransformer, LOFDiscretizerTransformer, PIDiscretizerTransformer }
+import com.elbauldelprogramador.featureselection.{ FCBFTransformer, InfoGainTransformer, OFSGDTransformer }
+import com.elbauldelprogramador.utils.FlinkUtils
+import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.pipeline.Transformer
+import org.apache.flink.ml.preprocessing.MinMaxScaler
+import org.apache.flink.api.scala._
 
 object Main {
 
-  private[this] case class Iris(
-    SepalLength: Double,
-    SepalWidth: Double,
-    PetalLength: Double,
-    PetalWidth: Double,
-    Class: Double)
-
   def main(args: Array[String]) {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(4)
-    //v.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-    //3, // number of restart attempts
-    //Time.of(10, TimeUnit.SECONDS) // delay
-    //
 
-    val abaloneDat = env.readCsvFile[(Int, Double, Double, Double, Double, Double, Double, Double, Int)](getClass.getResource("/abalone.csv").getPath)
-      .name("Reading Abalone DS")
-    val abaloneDS = abaloneDat
-      .map { tuple ⇒
-        val list = tuple.productIterator.toList
-        val numList = list map { x ⇒
-          x match {
-            case d: Double ⇒ d
-            case i: Int ⇒ i
-          }
-        }
-        LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
-      }.name("Abalone DS")
+    args.headOption match {
+      case Some(f) ⇒ f.toInt match {
+        case x: Int ⇒ doTrain(x)
+        case _ ⇒ println(s"First param must be an integer")
+      }
+      case _ ⇒ println(s"Invalid param")
+    }
+  }
 
-    val pimaDat = env.readCsvFile[(Int, Int, Int, Int, Int, Double, Double, Int, Int)](args(0))
-      .name("Reading Pima DS")
-    val pimaDS = pimaDat
-      .map { tuple ⇒
-        val list = tuple.productIterator.toList
-        val numList = list map {
-          case d: Double ⇒ d
-          case i: Int ⇒ i
-        }
-        LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
-      }.name("Pima DS")
+  def doTrain(k: Int) = {
+    val scaler = MinMaxScaler()
 
-    val fcbf = FCBFTransformer()
-      .setThreshold(.05)
-    fcbf.fit(pimaDS)
-    val r = fcbf.transform(pimaDS)
-    r.print
-    println("DONE")
+    val fcbf = FCBFTransformer().setThreshold(.05)
+    val ig = InfoGainTransformer()
+    val ofs = OFSGDTransformer()
+    val ida = IDADiscretizerTransformer().setBins(5)
+    val lofd = LOFDiscretizerTransformer()
+    val pid = PIDiscretizerTransformer()
+
+    // Preprocess and save them
+    //for (d ← datasets) {
+    val data = datasets(0)
+    val (train, test) = readFold(k, data)
+    val nattr = FlinkUtils.numAttrs(train)
+    val selectN = (nattr / 2.0).ceil.toInt
+
+    println(s"Will keep 50% of features:, from $nattr to $selectN")
+
+    val trans = fcbf
+    val transName = trans.getClass.getSimpleName
+
+    val pipeline = scaler.
+      chainTransformer(trans)
+
+    println(s"Fitting for ${data} with ${transName} for fold $k")
+    pipeline fit train
+
+    println("Transforming...")
+    val result = pipeline transform train
+    println("Donde transformint train")
+
+    val testt = pipeline transform test
+    println("Donde transformint test")
+
+    write(testt, s"test-${transName}-fold-$k")
+    println(s"Done test-${transName}-fold-$k")
+    write(result, s"train-${transName}-fold-$k")
+    println(s"Done train-${transName}-fold-$k")
+    //}
+    env.execute
+  }
+
+  def write(d: DataSet[LabeledVector], name: String): Unit = {
+    d.map { tuple ⇒
+      tuple.vector.toArray.mkString(",").replace("(", "").replace(")", "") + "," + tuple.label
+    }.writeAsText(s"file:///home/aalcalde/pp/$name", WriteMode.OVERWRITE)
+      .name(("Writing"))
+      .setParallelism(1)
   }
 }

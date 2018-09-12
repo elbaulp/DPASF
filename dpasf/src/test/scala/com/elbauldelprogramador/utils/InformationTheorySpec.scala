@@ -13,7 +13,7 @@ class InformationTheorySpec extends BddSpec with Serializable {
 
   private val env = ExecutionEnvironment.createLocalEnvironment()
 
-  env.setParallelism(8)
+  env.setParallelism(4)
   env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
     3, // number of restart attempts
     Time.of(10, TimeUnit.SECONDS) // delay
@@ -43,6 +43,7 @@ class InformationTheorySpec extends BddSpec with Serializable {
 
   def truncAt2(n: Double) = truncateAt(2)(n)
   def roundAt4(n: Double) = roundAt(4)(n)
+  def truncAt3(n: Double) = truncateAt(3)(n)
   def roundAt2(n: Double) = roundAt(2)(n)
 
   val column0 = dataSet.map(lv ⇒ (lv.label, lv.vector(0)))
@@ -70,8 +71,8 @@ class InformationTheorySpec extends BddSpec with Serializable {
     }
 
     "When computing Symmetrical Uncertainty on the first column with label" - {
-      "Should be 0.0266" in {
-        assert(roundAt4(symmetricalUncertainty(column0)) === 0.0266)
+      "Should be 0.026" in {
+        assert(truncAt3(symmetricalUncertainty(column0)) === 0.026)
       }
     }
 

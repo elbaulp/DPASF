@@ -63,7 +63,7 @@ class PIDiscretizerTransformerSpec extends BddSpec with Serializable {
         // Train the pipeline (scaler and multiple linear regression)
         pipeline fit dataSet
         val r = pipeline.transform(dataSet)
-        r.print
+        r.count
         //        val r = pipeline.transform(dataSet)
         //        r.count()
         assert(1 === 1)

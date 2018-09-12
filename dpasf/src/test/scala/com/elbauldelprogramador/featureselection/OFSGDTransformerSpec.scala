@@ -43,7 +43,7 @@ class OFSGDTransformerSpec extends BddSpec with Serializable {
     "When computing its Entropy" - {
       "Should return entropy H(X) equal to 0.9402859586706309" in {
         val r = ofs transform data
-        r.print
+        r.count
         assert(r === r)
       }
     }

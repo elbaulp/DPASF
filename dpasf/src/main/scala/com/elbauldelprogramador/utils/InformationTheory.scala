@@ -34,7 +34,7 @@ case object InformationTheory {
    * @param n     Number of elements
    *
    */
-  private[this] def entropy(freqs: GenTraversable[Double], n: Double) = {
+  def entropy(freqs: GenTraversable[Double], n: Double) = {
     freqs.aggregate(0.0)({
       case (h, q) ⇒
         h + (if (q == 0) 0 else (q.toDouble / n) * (math.log(q.toDouble / n) / math.log(2)))

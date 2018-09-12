@@ -57,7 +57,7 @@ object FCBFTransformer {
 
   // ====================================== Parameters =============================================
   private[FCBFTransformer] case object Threshold extends Parameter[Double] {
-    val defaultValue: Option[Double] = Some(.5)
+    val defaultValue: Option[Double] = Some(.05)
   }
 
   // ==================================== Factory methods ==========================================

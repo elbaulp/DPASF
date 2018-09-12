@@ -20,7 +20,7 @@ object fixtures extends Serializable {
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
 
-  private val data = env.readCsvFile[Iris](getClass.getResource("/iris2.dat").getPath)
+  private val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
   //val dataSet = new ArffFileStream(getClass.getResource("/elecNormNew.arff").getPath, -1)
   //  val data = (1 to 10).map(_ => Seq(Random.nextDouble, Random.nextDouble, Random.nextInt))
   //  val dataSet = env.fromCollection(data map { tuple =>

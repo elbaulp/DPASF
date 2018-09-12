@@ -34,7 +34,7 @@ class LOFDiscretizerTransformerSpec extends BddSpec with Serializable {
       "Should return entropy H(X) equal to 0.9402859586706309" in {
 
         val discretized = ofs transform (dataSet)
-        discretized.print
+        discretized.count
       }
     }
   }

@@ -33,7 +33,7 @@
     </appender>
     <logger name="com.elbauldelprogramador" level="debug"/>
     <logger name="org.apache.flink" level="warn"/>
-    <root level="debug">
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>
