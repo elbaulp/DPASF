@@ -9,8 +9,11 @@ import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.pipeline.Transformer
 import org.apache.flink.ml.preprocessing.MinMaxScaler
 import org.apache.flink.api.scala._
+import org.slf4j.LoggerFactory
 
 object Main {
+
+  private[this] val log = LoggerFactory.getLogger(Main.getClass.getSimpleName)
 
   def main(args: Array[String]) {
 
@@ -35,12 +38,13 @@ object Main {
 
     // Preprocess and save them
     //for (d ← datasets) {
-    val data = datasets(1)
+    val data = datasets(2)
     val (train, test) = readFold(k, data)
     val nattr = FlinkUtils.numAttrs(train)
     val selectN = (nattr / 2.0).ceil.toInt
 
     println(s"Will keep 50% of features:, from $nattr to $selectN")
+    log.error(s"Will keep 50% of features:, from $nattr to $selectN")
 
     val trans = fcbf
     val transName = trans.getClass.getSimpleName
@@ -56,6 +60,8 @@ object Main {
     println("Donde transformint train")
 
     val testt = pipeline transform test
+    //val testt = pipeline.right.discretizeWith(train)
+
     println("Donde transformint test")
 
     write(testt, s"test-${data}-${transName}-fold-$k")

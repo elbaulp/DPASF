@@ -55,7 +55,7 @@ test in assembly := {}
 // exclude Scala library from assembly
 assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false)
 // Jar Name
-//assemblyJarName in assembly := "dpasf.jar"
+assemblyJarName in assembly := "dpasf.jar"
 // Assembly strategy
 assemblyMergeStrategy in assembly := {
 //  case PathList("javax", "servlet", xs @ _*)         => MergeStrategy.first
@@ -64,7 +64,7 @@ assemblyMergeStrategy in assembly := {
     MergeStrategy.first
   case PathList(ps @ _*) if ps.last endsWith ".html" => MergeStrategy.first
   case "application.conf"                            => MergeStrategy.concat
-  case "log4j.properties"                            => MergeStrategy.last
+  case "log4j.properties"                            => MergeStrategy.first
   case "unwanted.txt"                                => MergeStrategy.discard
   case x =>
     val oldStrategy = (assemblyMergeStrategy in assembly).value

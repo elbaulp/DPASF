@@ -1,10 +1,13 @@
 package com.elbauldelprogramador.utils
 
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.extensions._
 import org.apache.flink.ml.math.{ DenseVector, Vector }
 import org.slf4j.LoggerFactory
 
-import scala.collection.GenTraversable
+import com.elbauldelprogramador.utils.Utils._
+
+import scala.collection.{ GenTraversable, mutable }
 
 /**
  * Object containing utility functions for Information Theory
@@ -27,6 +30,8 @@ case object InformationTheory {
 
   private[this] val nlogn = (x: Double) ⇒ x * log(x)
 
+  private[this] val entropyCache = mutable.Map.empty[Int, Double]
+
   /**
    * Calculate entropy for the given frequencies.
    *
@@ -44,12 +49,65 @@ case object InformationTheory {
   /**
    * Calculate entropy for the given frequencies.
    *
+   * @param freqs Frequencies of each different class
+   */
+  def entropy(freqs: GenTraversable[Double]): Double = {
+    val k = freqs.##
+    if (entropyCache.isDefinedAt(k)) {
+      log.debug(" Cache Hit for entropy!")
+      entropyCache(k)
+    } else {
+      val p = DenseVector(freqs.toArray)
+      val h = p.dot(minuslog2(p))
+      entropyCache(k) = h
+      h
+    }
+  }
+
+  /**
+   * Calculate entropy for the given frequencies.
+   *
    * @param x Frequencies of each different class
    */
-  def entropy(x: GenTraversable[Double]): Double = {
-    val p = probs(x)
-    p.dot(minuslog2(p))
+  //ef entropy(x: GenTraversable[Double])(a: DummyImplicit): Double = {
+  // val k = x.##
+  // if (entropyCache.isDefinedAt(k)) {
+  //   log.debug(" Cache Hit for entropy!")
+  //   entropyCache(k)
+  // } else {
+  //   val p = probs(x)
+  //   val h = p.dot(minuslog2(p))
+  //   entropyCache(k) = h
+  //   h
+  // }
+  //
+
+  /** hot fix */
+
+  def entropy(x: DataSet[Double]): DataSet[Double] = {
+    val p = probs2(x)
+    p.map(x ⇒ x.dot(minuslog2(x)))
   }
+
+  def probs2(x: DataSet[Double]): DataSet[DenseVector] = {
+    val r = x.reduceGroup { in ⇒
+      val v = in.toVector
+      val r = v map (_ / v.sum)
+      DenseVector(r.toArray)
+    }
+    r
+  }
+
+  def probs2(x: GenTraversable[Double]): Vector = {
+    val counts = x.groupBy(identity)
+      .map(_._2.size)
+
+    val ps = counts map (_ / counts.sum.toDouble)
+
+    DenseVector(ps.toArray)
+  }
+
+  /** / hot fix */
 
   /**
    * Compute the probabilities of each value on the given [[collection]]
@@ -108,8 +166,8 @@ case object InformationTheory {
    *
    * Mutual Information is defined as H(X) - H(X|Y)
    *
-   * @param x  [[Seq]] with one column, representing X
-   * @param y  [[Seq]] with one colums, representing y
+   * @param x [[Seq]] with one column, representing X
+   * @param y [[Seq]] with one colums, representing y
    * @return Mutual Information
    */
   def mutualInformation(x: Seq[Double], y: Seq[Double]): Double =
@@ -120,24 +178,64 @@ case object InformationTheory {
    *
    * It is defined as SU(X, y) = 2 * (IG(X|Y) / (H(X) + H(Y)))
    *
-   * @param xy [[DataSet]] with two features
+   * @param yx [[DataSet]] with two features
    * @return SU value
    */
-  def symmetricalUncertainty(xy: DataSet[(Double, Double)]): Double = {
-    val su = xy.reduceGroup { in ⇒
-      val invec = in.toVector
-      val x = invec map (_._2)
-      val y = invec map (_._1)
+  def symmetricalUncertainty(yx: DataSet[(Double, Double)]): Double = {
+    val su =
+      // First Compute px and py
+      yx.mapPartitionWith {
+        case yx ⇒
+          val x = yx map (_._2)
+          val y = yx map (_._1)
 
-      val mu = mutualInformation(x, y)
-      val Hx = entropy(x)
-      val Hy = entropy(y)
+          val xPartialCounts = x.groupBy(identity)
+            .map { case (id, v) ⇒ (id, v.size) }
+          val yPartialCounts = y.groupBy(identity)
+            .map { case (id, v) ⇒ id -> v.size }
 
-      2 * mu / (Hx + Hy)
-    }
+          (xPartialCounts, yPartialCounts, x, y)
 
+      }.name("PartialCounts")
+        // Merge all probailities
+        .reduceWith {
+          case (a, b) ⇒
+
+            val x = for ((k, v) ← a._1) yield k -> (b._1.getOrElse(k, 0) + v)
+            val y = for ((k, v) ← a._2) yield k -> (b._2.getOrElse(k, 0) + v)
+
+            (x, y, a._3, a._4)
+
+        }.name("Total Counts")
+        // Compute H(X), H(Y), MU and finally SU
+        .mapWith {
+          case (xCounts, yCounts, x, y) ⇒
+
+            val total = yCounts.values.sum.toDouble
+
+            val px = xCounts.map(x ⇒ x._1 -> x._2 / total).values
+            val hx = entropy(px)
+
+            val py = yCounts.map(x ⇒ x._1 -> x._2 / total).values
+            val hy = entropy(py)
+
+            val mu = mutualInformation(x, y)
+
+            2 * mu / (hx + hy)
+        }.name("MU & SU")
     su.collect.head
   }
+
+  // def time[R](desc: String)(block: ⇒ R): R = {
+  //   val t0 = System.nanoTime()
+  //   val result = block // call-by-name
+  //   val t1 = System.nanoTime()
+  //   val execTime = (t1 - t0) / 1e9
+  //   log.info(s"$execTime for $desc")
+  //   writeToFile(s"/home/aalcalde/times2/$desc", execTime.toString)
+  //   //    println(s"Elapsed time for $desc: " + (t1 - t0) + " ns")
+  //   result
+  // }
 
   /**
    * Test using Fayyad and Irani's MDL criterion.

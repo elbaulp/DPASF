@@ -23,6 +23,8 @@ import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 import org.slf4j.LoggerFactory
 
+import collection.mutable
+
 /**
  * Fast Correlation-Based Filter (FCBF) algorithm as described in
  * Feature Selection for High-Dimensional Data: A Fast Correlation-Based
@@ -54,6 +56,8 @@ class FCBFTransformer extends Transformer[FCBFTransformer] {
 object FCBFTransformer {
 
   private[this] val log = LoggerFactory.getLogger(this.getClass)
+
+  private[this] val cache = mutable.Map.empty[(Int, Int), Double]
 
   // ====================================== Parameters =============================================
   private[FCBFTransformer] case object Threshold extends Parameter[Double] {
@@ -172,10 +176,17 @@ object FCBFTransformer {
         q match {
           case Some((qsu, qidx, qNextIdx)) ⇒
             // TODO: Cache SU value for (p,q)?
-            val pqSu = InformationTheory.symmetricalUncertainty(
-              input
-                map (x ⇒ (x vector qidx, x vector pidx))
-                name "PQ SU")
+            val pqSu = if (cache.isDefinedAt((pidx, qidx))) {
+              log.debug(s"SU: Cache Hit for ($pidx, $qidx)")
+              cache((pidx, qidx))
+            } else {
+              val su = InformationTheory.symmetricalUncertainty(
+                input
+                  map (x ⇒ (x vector qidx, x vector pidx))
+                  name "PQ SU")
+              cache((pidx, qidx)) = su
+              su
+            }
             val newSlist =
               if (pqSu >= qsu) slist.updated(qNextIdx, (qsu, qidx, 0))
               else slist

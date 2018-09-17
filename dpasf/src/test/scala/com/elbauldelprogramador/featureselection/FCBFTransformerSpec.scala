@@ -32,7 +32,7 @@ class FCBFTransformerSpec extends BddSpec with Serializable {
   conf.setString(WebOptions.LOG_PATH, "/tmp/flink/log/output.out")
 
   private val env = ExecutionEnvironment.createLocalEnvironmentWithWebUI(conf)
-  env.setParallelism(8)
+  env.setParallelism(2)
 
   //env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   //  1, // number of restart attempts
@@ -65,6 +65,28 @@ class FCBFTransformerSpec extends BddSpec with Serializable {
       LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
     }.name("Pima DS")
 
+  private val tennis = Vector(
+    Vector(1, 0),
+    Vector(1, 0),
+    Vector(2, 1),
+    Vector(3, 1),
+    Vector(3, 1),
+    Vector(3, 0),
+    Vector(2, 1),
+    Vector(1, 0),
+    Vector(1, 1),
+    Vector(3, 1),
+    Vector(1, 1),
+    Vector(2, 1),
+    Vector(2, 1),
+    Vector(3, 0))
+
+  private val tennisDS = env.fromCollection(tennis map { tuple ⇒
+    val list = tuple.iterator.toList
+    val numList = list map (_.toDouble)
+    LabeledVector(numList(1), DenseVector(numList.take(1).toArray))
+  })
+
   val fcbf = FCBFTransformer()
     .setThreshold(.05)
 
@@ -83,5 +105,4 @@ class FCBFTransformerSpec extends BddSpec with Serializable {
       }
     }
   }
-
 }
