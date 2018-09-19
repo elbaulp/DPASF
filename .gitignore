@@ -4,3 +4,8 @@ target/
 .ensime*
 *.zip
 .idea/
+*.csv
+*.data
+svmguide3
+*.dat
+*.arff
