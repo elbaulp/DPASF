@@ -29,9 +29,9 @@ object Main {
   def doTrain(k: Int) = {
     val scaler = MinMaxScaler()
 
-    val fcbf = FCBFTransformer().setThreshold(.05)
+    val fcbf = FCBFTransformer()
     val ig = InfoGainTransformer()
-    val ofs = OFSGDTransformer()
+    val ofs = OFSGDTransformer() // TODO: Only binary class {-1, 1}
     val ida = IDADiscretizerTransformer().setBins(5)
     val lofd = LOFDiscretizerTransformer() // TODO: SET n class
     val pid = PIDiscretizerTransformer()
@@ -46,7 +46,7 @@ object Main {
     println(s"Will keep 50% of features:, from $nattr to $selectN")
     log.error(s"Will keep 50% of features:, from $nattr to $selectN")
 
-    val trans = fcbf
+    val trans = lofd.setNClass(3)
     val transName = trans.getClass.getSimpleName
 
     val pipeline = scaler.
@@ -57,25 +57,25 @@ object Main {
 
     println("Transforming...")
     val result = pipeline transform train
-    println("Donde transformint train")
+    println("Done transforming train")
 
     val testt = pipeline transform test
     //val testt = pipeline.right.discretizeWith(train)
 
-    println("Donde transformint test")
+    println("Done transorming test")
 
-    write(testt, s"test-${data}-${transName}-fold-$k")
-    println(s"Done test-${data}-${transName}-fold-$k")
     write(result, s"train-${data}-${transName}-fold-$k")
     println(s"Done train-${data}-${transName}-fold-$k")
+    write(testt, s"test-${data}-${transName}-fold-$k")
+    println(s"Done test-${data}-${transName}-fold-$k")
     //}
     env.execute
   }
 
   def write(d: DataSet[LabeledVector], name: String): Unit = {
     d.map { tuple ⇒
-      tuple.vector.toArray.mkString(",").replace("(", "").replace(")", "") + "," + tuple.label
-    }.writeAsText(s"file:///home/aalcalde/pp/$name", WriteMode.OVERWRITE)
+      tuple.vector.map(_._2).mkString(",") + "," + tuple.label
+    }.writeAsText(s"file:///home/aalcalde/prep/$name", WriteMode.OVERWRITE)
       .name(("Writing"))
       .setParallelism(1)
   }

@@ -117,7 +117,7 @@ object FCBFTransformer {
           case None ⇒ suSorted
         }
       }
-      log.info(s"Best Features found: $sBest.last")
+      log.info(s"Best Features found: ${sBest.last}")
       val bestIndexs = sBest.last map (_._2)
 
       instance.metricsOption = Some(bestIndexs)
@@ -177,7 +177,7 @@ object FCBFTransformer {
           case Some((qsu, qidx, qNextIdx)) ⇒
             // TODO: Cache SU value for (p,q)?
             val pqSu = if (cache.isDefinedAt((pidx, qidx))) {
-              log.debug(s"SU: Cache Hit for ($pidx, $qidx)")
+              log.info(s"SU: Cache Hit for ($pidx, $qidx)")
               cache((pidx, qidx))
             } else {
               val su = InformationTheory.symmetricalUncertainty(

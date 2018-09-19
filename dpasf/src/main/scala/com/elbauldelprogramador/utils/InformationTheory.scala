@@ -54,7 +54,7 @@ case object InformationTheory {
   def entropy(freqs: GenTraversable[Double]): Double = {
     val k = freqs.##
     if (entropyCache.isDefinedAt(k)) {
-      log.debug(" Cache Hit for entropy!")
+      log.info(" Cache Hit for entropy!")
       entropyCache(k)
     } else {
       val p = DenseVector(freqs.toArray)
