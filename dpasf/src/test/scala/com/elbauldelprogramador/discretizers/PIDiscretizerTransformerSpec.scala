@@ -18,6 +18,7 @@
 package com.elbauldelprogramador.discretizers
 
 import com.elbauldelprogramador.BddSpec
+import com.elbauldelprogramador.Setup._
 import com.elbauldelprogramador.pojo.ElecNormNew
 import org.apache.flink.api.scala.{ ExecutionEnvironment, _ }
 import org.apache.flink.ml.common.LabeledVector
@@ -47,6 +48,8 @@ class PIDiscretizerTransformerSpec extends BddSpec with Serializable {
     LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
   }
 
+  val (sensorTrain, sensorTest) = readFold(1, datasets(2), "/home/hkr/Documents/Estudios/Master/TFM/Desarrollo/DPASF/dpasf/src/test/resources/")
+
   private val pid = PIDiscretizerTransformer()
   //    .setAlpha(.10)
   //    .setUpdateExamples(50)
@@ -61,8 +64,8 @@ class PIDiscretizerTransformerSpec extends BddSpec with Serializable {
           .chainTransformer(pid)
 
         // Train the pipeline (scaler and multiple linear regression)
-        pipeline fit dataSet
-        val r = pipeline.transform(dataSet)
+        pipeline fit sensorTrain
+        val r = pipeline.transform(sensorTrain)
         r.count
         //        val r = pipeline.transform(dataSet)
         //        r.count()

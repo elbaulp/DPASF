@@ -18,7 +18,7 @@ case object InformationTheory {
 
   private[this] val log2 = math.log(2)
 
-  private[this] def log2(a: Double): Double = math.log(a) / log2
+  private[this] def log2(a: Double): Double = if (a > 0) math.log(a) / log2 else 0
 
   private[this] def log2(a: Vector): Vector = DenseVector(a.map(v ⇒ log2(v._2)).toArray)
 
@@ -54,7 +54,7 @@ case object InformationTheory {
   def entropy(freqs: GenTraversable[Double]): Double = {
     val k = freqs.##
     if (entropyCache.isDefinedAt(k)) {
-      log.info(" Cache Hit for entropy!")
+      log.debug(" Cache Hit for entropy!")
       entropyCache(k)
     } else {
       val p = DenseVector(freqs.toArray)
@@ -264,13 +264,13 @@ case object InformationTheory {
     val nClasses = priorCounts.count(_ != 0)
 
     // Number of classes in the left subset
-    val nClassesLeft = bestCounts.head.count(_ != 0)
+    val nClassesLeft = bestCounts.headOption.map(_.count(_ != 0)).getOrElse(0)
     // Number of classes in the right subset
-    val nClassesRight = bestCounts(1).count(_ != 0)
+    val nClassesRight = bestCounts.lastOption.map(_.count(_ != 0)).getOrElse(0)
 
     // Entropies for left and right
-    val hLeft = entropy(bestCounts.head)
-    val hRight = entropy(bestCounts(1))
+    val hLeft = entropy(bestCounts.headOption.getOrElse(Seq.empty))
+    val hRight = entropy(bestCounts.lastOption.getOrElse(Seq.empty))
 
     // MDL formula
     val delta = log2(math.pow(3, nClasses) - 2) -

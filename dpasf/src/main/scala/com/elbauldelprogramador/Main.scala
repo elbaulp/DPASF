@@ -46,7 +46,7 @@ object Main {
     println(s"Will keep 50% of features:, from $nattr to $selectN")
     log.error(s"Will keep 50% of features:, from $nattr to $selectN")
 
-    val trans = lofd.setNClass(3)
+    val trans = pid
     val transName = trans.getClass.getSimpleName
 
     val pipeline = scaler.
@@ -75,8 +75,9 @@ object Main {
   def write(d: DataSet[LabeledVector], name: String): Unit = {
     d.map { tuple ⇒
       tuple.vector.map(_._2).mkString(",") + "," + tuple.label
-    }.writeAsText(s"file:///home/aalcalde/prep/$name", WriteMode.OVERWRITE)
-      .name(("Writing"))
+    }.name("Spark Format")
+      .writeAsText(s"file:///home/aalcalde/prep/$name", WriteMode.OVERWRITE)
+      .name(s"Write $name")
       .setParallelism(1)
   }
 }

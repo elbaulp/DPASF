@@ -173,18 +173,21 @@ object PIDiscretizerTransformer {
       val metric = input.map { x ⇒
         // (instance, histrogram totalCount)
         (x, Histogram(nAttrs, l1InitialBins, min, step), 1)
-      }.reduce { (m1, m2) ⇒
+      }.name("Init Histogram")
+        .reduce { (m1, m2) ⇒
 
-        // Update Layer 1
-        val updatedL1 = updateL1(m1._1, m1._2, step, initialElems, alpha, m1._3)
+          // Update Layer 1
+          val updatedL1 = updateL1(m1._1, m1._2, step, initialElems, alpha, m1._3)
 
-        // Update Layer 2 if necesary
-        val updatedL2 = if (m1._3 % l2updateExamples == 0) {
-          updateL2(m1._1, updatedL1)
-        } else updatedL1
+          // Update Layer 2 if necesary
+          val updatedL2 = if (m1._3 % l2updateExamples == 0) {
+            updateL2(m1._1, updatedL1)
+          } else updatedL1
 
-        (m2._1, updatedL2, m1._3 + 1)
-      }.map(_._2.cutMatrixL2.map(_.toVector).toVector)
+          (m2._1, updatedL2, m1._3 + 1)
+        }.name("Update L1 & L2")
+        .map(_._2.cutMatrixL2.map(_.toVector).toVector)
+        .name("Get Cutpoints")
 
       instance.metricsOption = Some(metric)
     }
@@ -203,13 +206,13 @@ object PIDiscretizerTransformer {
       input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
       val resultingParameters = instance.parameters ++ transformParameters
 
-      val l2updateExamples = resultingParameters(L2UpdateExamples)
-      val alpha = resultingParameters(Alpha)
-      val min = resultingParameters(Min)
-      val max = resultingParameters(Max)
-      val l1InitialBins = resultingParameters(L1InitialBins)
-      val initialElems = resultingParameters(InitialElements)
-      val nAttrs = FlinkUtils.numAttrs(input)
+      //      val l2updateExamples = resultingParameters(L2UpdateExamples)
+      //      val alpha = resultingParameters(Alpha)
+      //      val min = resultingParameters(Min)
+      //      val max = resultingParameters(Max)
+      //      val l1InitialBins = resultingParameters(L1InitialBins)
+      //      val initialElems = resultingParameters(InitialElements)
+      ////      val nAttrs = FlinkUtils.numAttrs(input)
 
       instance.metricsOption match {
         case Some(m) ⇒
