@@ -38,7 +38,7 @@ object Main {
 
     // Preprocess and save them
     //for (d ← datasets) {
-    val data = datasets(2)
+    val data = datasets(0)
     val (train, test) = readFold(k, data)
     val nattr = FlinkUtils.numAttrs(train)
     val selectN = (nattr / 2.0).ceil.toInt
@@ -60,7 +60,6 @@ object Main {
     println("Done transforming train")
 
     val testt = pipeline transform test
-    //val testt = pipeline.right.discretizeWith(train)
 
     println("Done transorming test")
 

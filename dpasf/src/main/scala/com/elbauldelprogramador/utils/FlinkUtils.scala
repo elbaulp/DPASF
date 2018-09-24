@@ -38,6 +38,7 @@ private[elbauldelprogramador] case object FlinkUtils {
     .mapPartition(in ⇒ if (in.hasNext) Seq(in.next.vector.size) else Seq())
     .name("Compute NumAttrs")
     .setParallelism(1)
+    .name("Recollect")
     .collect
     .head
 
