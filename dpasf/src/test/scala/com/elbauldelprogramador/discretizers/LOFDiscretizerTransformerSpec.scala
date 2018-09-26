@@ -27,12 +27,13 @@ class LOFDiscretizerTransformerSpec extends BddSpec with Serializable {
   }
 
   private val ofs = LOFDiscretizerTransformer()
-    .setInitTh(1)
+    .setInitTh(10)
 
   "A Information Gain FS on TennnisDS" - {
     "When computing its Entropy" - {
       "Should return entropy H(X) equal to 0.9402859586706309" in {
 
+        ofs fit dataSet
         val discretized = ofs transform (dataSet)
         discretized.count
       }

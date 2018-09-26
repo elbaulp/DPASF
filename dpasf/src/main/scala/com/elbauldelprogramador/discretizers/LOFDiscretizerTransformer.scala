@@ -18,8 +18,11 @@ package com.elbauldelprogramador.discretizers
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap }
+import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.pipeline.{ FitOperation, TransformDataSetOperation, Transformer }
 import org.slf4j.LoggerFactory
+
+import scala.collection.immutable
 
 /**
  * Local Online Fusion Discretizer (LOFD)
@@ -34,6 +37,8 @@ import org.slf4j.LoggerFactory
  * </a>
  */
 class LOFDiscretizerTransformer extends Transformer[LOFDiscretizerTransformer] {
+
+  private[discretizers] var cuts: Option[DataSet[immutable.IndexedSeq[Array[Double]]]] = None
 
   import LOFDiscretizerTransformer._
 
@@ -163,7 +168,39 @@ object LOFDiscretizerTransformer {
     override def fit(
       instance: LOFDiscretizerTransformer,
       fitParameters: ParameterMap,
-      input: DataSet[LabeledVector]): Unit = ()
+      input: DataSet[LabeledVector]): Unit = {
+      val resultingParameters = instance.parameters ++ fitParameters
+      val alpha = resultingParameters(Alpha)
+      val lambda = resultingParameters(Lambda)
+      val initTh = resultingParameters(InitTH)
+      val maxHist = resultingParameters(MaxHist)
+      val decimals = resultingParameters(Decimals)
+      val maxLabels = resultingParameters(MaxLabels)
+      val provideProb = resultingParameters(ProvideProb)
+
+      val nClasses = resultingParameters(NCLasses)
+
+      val lofd = new LOFDiscretizer(
+        maxHist,
+        initTh,
+        decimals,
+        maxLabels,
+        nClasses)
+
+      val cuts = input.map { x ⇒
+        val s = lofd applyDiscretization x
+        for (s ← 0 until s.vector.size) yield {
+          Option(lofd.getCutPoints(s))
+        }
+      }.name("ApplyDiscretization")
+        .reduce((_, b) ⇒ b)
+        .name("Reducing")
+        .map(_.map(_.getOrElse(Array.empty)))
+        .name("Last cuts")
+
+      instance.cuts = Some(cuts)
+
+    }
   }
 
   implicit val transformDataSetLabeledVectorsInfoGain = {
@@ -182,21 +219,22 @@ object LOFDiscretizerTransformer {
         val maxLabels = resultingParameters(MaxLabels)
         val provideProb = resultingParameters(ProvideProb)
 
-        //        val nClasses = input.map(_.label)
-        //          .distinct
-        //          .count
-        //          .toInt
-
-        val nClasses = resultingParameters(NCLasses)
-
-        val lofd = new LOFDiscretizer(
-          maxHist,
-          initTh,
-          decimals,
-          maxLabels,
-          nClasses)
-
-        input.map(lofd applyDiscretization _)
+        instance.cuts match {
+          case Some(c) ⇒
+            input.mapWithBcVariable(c) {
+              case (lv, cuts) ⇒
+                val attrs = lv.vector
+                val d = attrs.map {
+                  case (i, v) ⇒
+                    val bin = cuts(i).indexWhere(v < _)
+                    if (bin == -1 && v < cuts(i).head) -2 else bin
+                }
+                LabeledVector(lv.label, DenseVector(d.toArray))
+            }
+          case None ⇒
+            throw new RuntimeException("The LOFDiscretizer has not been transformed. " +
+              "This is necessary to retrieve the cutpoints for future discretizations.")
+        }
       }
     }
   }
