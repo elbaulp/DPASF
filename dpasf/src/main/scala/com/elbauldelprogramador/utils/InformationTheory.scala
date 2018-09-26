@@ -226,17 +226,6 @@ case object InformationTheory {
     su.collect.head
   }
 
-  // def time[R](desc: String)(block: ⇒ R): R = {
-  //   val t0 = System.nanoTime()
-  //   val result = block // call-by-name
-  //   val t1 = System.nanoTime()
-  //   val execTime = (t1 - t0) / 1e9
-  //   log.info(s"$execTime for $desc")
-  //   writeToFile(s"/home/aalcalde/times2/$desc", execTime.toString)
-  //   //    println(s"Elapsed time for $desc: " + (t1 - t0) + " ns")
-  //   result
-  // }
-
   /**
    * Test using Fayyad and Irani's MDL criterion.
    *

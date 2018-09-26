@@ -1,9 +1,11 @@
 package com.elbauldelprogramador
 
 import com.elbauldelprogramador.Setup._
+import com.elbauldelprogramador.utils.Utils._
 import com.elbauldelprogramador.discretizers.{ IDADiscretizerTransformer, LOFDiscretizerTransformer, PIDiscretizerTransformer }
 import com.elbauldelprogramador.featureselection.{ FCBFTransformer, InfoGainTransformer, OFSGDTransformer }
 import com.elbauldelprogramador.utils.FlinkUtils
+import java.util.concurrent.TimeUnit
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.pipeline.Transformer
@@ -27,18 +29,19 @@ object Main {
   }
 
   def doTrain(k: Int) = {
+
     val scaler = MinMaxScaler()
 
     val fcbf = FCBFTransformer()
     val ig = InfoGainTransformer()
     val ofs = OFSGDTransformer() // TODO: Only binary class {-1, 1}
-    val ida = IDADiscretizerTransformer().setBins(5)
+    val ida = IDADiscretizerTransformer()
     val lofd = LOFDiscretizerTransformer() // TODO: SET n class
     val pid = PIDiscretizerTransformer()
 
     // Preprocess and save them
     //for (d ← datasets) {
-    val data = datasets(0)
+    val data = datasets(2)
     val (train, test) = readFold(k, data)
     val nattr = FlinkUtils.numAttrs(train)
     val selectN = (nattr / 2.0).ceil.toInt
@@ -52,7 +55,10 @@ object Main {
     val pipeline = scaler.
       chainTransformer(trans)
 
-    println(s"Fitting for ${data} with ${transName} for fold $k")
+    println(s"Fitting for $data with $transName for fold $k")
+
+    val path = s"/home/aalcalde/times/$transName-$data"
+
     pipeline fit train
 
     println("Transforming...")
@@ -60,23 +66,24 @@ object Main {
     println("Done transforming train")
 
     val testt = pipeline transform test
-
     println("Done transorming test")
 
-    write(result, s"train-${data}-${transName}-fold-$k")
-    println(s"Done train-${data}-${transName}-fold-$k")
-    write(testt, s"test-${data}-${transName}-fold-$k")
-    println(s"Done test-${data}-${transName}-fold-$k")
+    write(result, s"train-$data-$transName-fold-$k")
+    println(s"Done train-$data-$transName-fold-$k")
+    write(testt, s"test-$data-$transName-fold-$k")
+    println(s"Done test-$data-$transName-fold-$k")
     //}
-    env.execute
+    val r = env.execute(transName)
+    System.out.println("The job took " + r.getNetRuntime(TimeUnit.SECONDS) + " s to execute")
+    writeToFile(path, s"$data-${r.getNetRuntime(TimeUnit.SECONDS).toString}")
   }
 
   def write(d: DataSet[LabeledVector], name: String): Unit = {
     d.map { tuple ⇒
       tuple.vector.map(_._2).mkString(",") + "," + tuple.label
     }.name("Spark Format")
-      .writeAsText(s"file:///home/aalcalde/prep/$name", WriteMode.OVERWRITE)
+      .writeAsText(s"file:///home/aalcalde/prep2/$name", WriteMode.OVERWRITE)
       .name(s"Write $name")
-      .setParallelism(1)
+    //      .setParallelism(1)
   }
 }

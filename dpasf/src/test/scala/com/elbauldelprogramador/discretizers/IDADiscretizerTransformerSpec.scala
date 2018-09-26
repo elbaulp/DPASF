@@ -3,6 +3,7 @@ package com.elbauldelprogramador.discretizers
 import java.util.concurrent.TimeUnit
 
 import com.elbauldelprogramador.BddSpec
+import com.elbauldelprogramador.utils.Utils._
 import com.elbauldelprogramador.pojo.{ ElecNormNew, Iris }
 import com.elbauldelprogramador.Setup._
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
@@ -21,19 +22,19 @@ object fixtures extends Serializable {
     Time.of(10, TimeUnit.SECONDS) // delay
   ))
 
-    private val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
-    private[discretizers] val dataSet = data map { tuple ⇒
-      val list = tuple.productIterator.toList
-      val numList = list map (_.asInstanceOf[Double])
-      LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
-    }
+  private val data = env.readCsvFile[Iris](getClass.getResource("/iris.dat").getPath)
+  private[discretizers] val dataSet = data map { tuple ⇒
+    val list = tuple.productIterator.toList
+    val numList = list map (_.asInstanceOf[Double])
+    LabeledVector(numList(4), DenseVector(numList.take(4).toArray))
+  }
 
-//  val data = env.readCsvFile[ElecNormNew](getClass.getResource("/elecNormNew.arff").getPath)
-//  val dataSet = data map { tuple ⇒
-//    val list = tuple.productIterator.toList
-//    val numList = list map (_.asInstanceOf[Double])
-//    LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
-//  }
+  //val data = env.readCsvFile[ElecNormNew](getClass.getResource("/elecNormNew.arff").getPath)
+  //val dataSet = data map { tuple ⇒
+  //  val list = tuple.productIterator.toList
+  //  val numList = list map (_.asInstanceOf[Double])
+  //  LabeledVector(numList(8), DenseVector(numList.take(8).toArray))
+  //}
 
 }
 
@@ -47,6 +48,7 @@ class IDADiscretizerTransformerSpec extends BddSpec with Serializable {
       "Should be computed correctly" in {
         val ida = IDADiscretizerTransformer()
           .setBins(5).setSampleSize(15)
+
         ida fit dataSet
         val discretized = ida transform dataSet
         val discretized2 = ida transform dataSet
