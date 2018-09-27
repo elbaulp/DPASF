@@ -17,6 +17,7 @@
 
 package com.elbauldelprogramador.featureselection
 
+import com.elbauldelprogramador.utils.FlinkUtils
 import breeze.linalg.norm
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{ LabeledVector, Parameter, ParameterMap, WeightVector }
@@ -121,6 +122,7 @@ object OFSGDTransformer {
 
       // TODO: Better way to compute dimensions
       val dimensionsDS = input.map(_.vector.size).reduce((_, b) ⇒ b).collect.head
+      val dimensionsDS = FlinkUtils.numAttrs(input)
 
       val values = Array.fill(dimensionsDS)(0.0)
       var weights = WeightVector(DenseVector(values), .0).weights.asBreeze
