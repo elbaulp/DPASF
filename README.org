@@ -1,5 +1,8 @@
 #+TITLE: DPASF (Data Pre-processing Algorithms for Streaming in Flink)
 
+
+*Cite this library:* [[https://zenodo.org/badge/doi/10.5281/zenodo.1451506.svg]]
+
 My MSc on Data Science final project. This is a library for Massive Data Streaming analysis using Apache Flink
 
 * Implemented algorithms
