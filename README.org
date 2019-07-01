@@ -5,7 +5,8 @@
 My MSc on Data Science final project. This is a library for Massive Data Streaming analysis using Apache Flink
 
 * Associated publication
-Alejandro Alcalde-Barros, Diego García-Gil, Salvador García, Francisco Herrera, /DPASF: A Flink Library for Streaming Data preprocessing/ https://arxiv.org/abs/1810.06021
+
+Alejandro Alcalde-Barros, Diego García-Gil, Salvador García, Francisco Herrera, /DPASF: A Flink Library for Streaming Data preprocessing/ [[https://doi.org/10.1186/s41044-019-0041-8][Big Data Analytics]] | [[https://arxiv.org/abs/1810.06021][ArXiv]]
 
 *Abstract* Data preprocessing techniques are devoted to correct or alleviate errors in data. Discretization and feature selection are two of the most extended data preprocessing techniques. Although we can find many proposals for static Big Data preprocessing, there is little research devoted to the continuous Big Data problem. Apache Flink is a recent and novel Big Data framework, following the MapReduce paradigm, focused on distributed stream and batch data processing. In this paper we propose a data stream library for Big Data preprocessing, named DPASF, under Apache Flink. We have implemented six of the most popular data preprocessing algorithms, three for discretization and the rest for feature selection. The algorithms have been tested using two Big Data datasets. Experimental results show that preprocessing can not only reduce the size of the data, but to maintain or even improve the original accuracy in a short time. DPASF contains useful algorithms when dealing with Big Data data streams. The preprocessing algorithms included in the library are able to tackle Big Datasets efficiently and to correct imperfections in the data.
 
